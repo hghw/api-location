@@ -1,0 +1,43 @@
+﻿.ui.menu .item {
+    font-weight: 700;
+}
+#uploadSuccess, #uploadFail, #errorUpload, #loader {
+    z-index: 99999;
+}
+.ui.footer.segment {
+    padding: 2em 0em;
+/*    margin-top: 5em 0em;
+*/    position: fixed;
+    bottom: 0;
+    /* left: auto; */
+    /* right: 0; */
+    width: 100%;
+}
+.modals.dimmer .ui.scrolling.modal {
+    margin: 18em auto;
+}
+#titleTimeout {
+    text-align: center;
+    font-size: 30px;
+    margin-top: 280px;
+}
+#hethan {
+    padding: 120px;
+    border-radius: 30px;
+    background-color: #e89890;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    color: #fff;
+    width: 100px;
+    box-shadow: 12px 9px 4px grey;
+}
+@media only screen and (max-width: 600px) {
+    #hethan {
+        padding: 45px;
+    }
+}
+@media only screen and (max-width: 300px) {
+    #hethan {
+        padding: 10px;
+    }
+}

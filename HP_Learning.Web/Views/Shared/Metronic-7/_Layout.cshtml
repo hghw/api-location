@@ -1,0 +1,327 @@
+﻿<!DOCTYPE html>
+
+<html lang="en">
+<!--begin::Head-->
+
+<head>
+    <base href="/">
+    <meta charset="utf-8" />
+    <title>Cục Quản lý xây dựng và doanh trại | Bộ Công An</title>
+    <meta name="description" content="Cục Quản lý xây dựng và doanh trại | Bộ Công An" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <link rel="canonical" href="http://vietgis.com.vn" />
+    <!--begin::Fonts-->
+    @* <link href="https://fonts.googleapis.com/css2?family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet" /> *@
+    <!--end::Fonts-->
+    <!--begin::Global Theme Styles(used by all pages)-->
+    @RenderSection("styles", false)
+    <!--end::Global Theme Styles-->
+    <!--begin::Layout Themes(used by all pages)-->
+    <!--end::Layout Themes-->
+    <link rel="shortcut icon" href="/assets/media/logos/favicon.ico" />
+
+</head>
+<!--end::Head-->
+<!--begin::Body-->
+
+<body id="kt_body" class="header-fixed header-mobile-fixed header-bottom-enabled subheader-enabled page-loading page-loading-enabled">
+
+    @await Html.PartialAsync("Metronic-7/Partials/_Page_Loader")
+
+    @RenderBody()
+
+    @await Component.InvokeAsync("ChatWidget")
+
+    <!--begin::Global Config(global config for global JS scripts)-->
+    <script>
+        var KTAppSettings = {
+            "breakpoints": {
+                "sm": 576,
+                "md": 768,
+                "lg": 992,
+                "xl": 1200,
+                "xxl": 1200
+            },
+            "colors": {
+                "theme": {
+                    "base": {
+                        "white": "#ffffff",
+                        "primary": "#6993FF",
+                        "secondary": "#E5EAEE",
+                        "success": "#1BC5BD",
+                        "info": "#8950FC",
+                        "warning": "#FFA800",
+                        "danger": "#F64E60",
+                        "light": "#F3F6F9",
+                        "dark": "#212121"
+                    },
+                    "light": {
+                        "white": "#ffffff",
+                        "primary": "#E1E9FF",
+                        "secondary": "#ECF0F3",
+                        "success": "#C9F7F5",
+                        "info": "#EEE5FF",
+                        "warning": "#FFF4DE",
+                        "danger": "#FFE2E5",
+                        "light": "#F3F6F9",
+                        "dark": "#D6D6E0"
+                    },
+                    "inverse": {
+                        "white": "#ffffff",
+                        "primary": "#ffffff",
+                        "secondary": "#212121",
+                        "success": "#ffffff",
+                        "info": "#ffffff",
+                        "warning": "#ffffff",
+                        "danger": "#ffffff",
+                        "light": "#464E5F",
+                        "dark": "#ffffff"
+                    }
+                },
+                "gray": {
+                    "gray-100": "#F3F6F9",
+                    "gray-200": "#ECF0F3",
+                    "gray-300": "#E5EAEE",
+                    "gray-400": "#D6D6E0",
+                    "gray-500": "#B5B5C3",
+                    "gray-600": "#80808F",
+                    "gray-700": "#464E5F",
+                    "gray-800": "#1B283F",
+                    "gray-900": "#212121"
+                }
+            },
+            "font-family": "Open Sans"
+        };
+    </script>
+
+    <!--end::Global Config-->
+    <!--begin::Global Theme Bundle(used by all pages)-->
+    @* <script src="~/assets/plugins/global/plugins.bundle.js?v=7.0.6"></script> *@
+    @* <script src="~/assets/plugins/custom/prismjs/prismjs.bundle.js?v=7.0.6"></script> *@
+    @* <script src="~/assets/js/scripts.bundle.js?v=7.0.6"></script> *@
+
+    <!--end::Global Theme Bundle-->
+    <!--begin::Page Vendors(used by this page)-->
+    @* <script src="~/assets/plugins/custom/fullcalendar/fullcalendar.bundle.js?v=7.0.6"></script> *@
+
+    <!--end::Page Vendors-->
+    <!--begin::Page Scripts(used by this page)-->
+
+    <script>
+    const GlobalConfigs = {
+        isSA: '@(User.IsInRole("sa") || User.IsInRole("administrator"))' === 'True',
+        isAdmin: '@(User.IsInRole("sa") || User.IsInRole("administrator"))' === 'True',
+        isLDP: '@User.IsInRole("room_leader")' === 'True',
+        isCBTH: '@User.IsInRole("general_officer")' === 'True',
+        isCB: '@User.IsInRole("officer")' === 'True',
+        isVT: '@User.IsInRole("van_thu")' === 'True',
+        isLDC: '@User.IsInRole("department_leader")' === 'True',
+        isTM: '@User.IsInRole("tham_muu")' === 'True',
+        Uname: '@User.Identity.Name',
+        isView: '@(User.IsInRole("sa") || User.IsInRole("administrator") || User.IsInRole("van_thu") || User.IsInRole("department_leader") || User.IsInRole("room_leader"))' === 'True'
+    };
+    </script>
+
+    @RenderSection("scripts", false)
+    <script src="~/js/jquery-3.6.0.js"></script>
+    <script src="~/js/sweetalert.min.js"></script>
+    <script>
+        $.get('/xlhs/hoSo/canhBaoQuaHan').then(xhr => {
+            if (xhr.status == "OK") {
+                //console.log(xhr.data)
+                let html = "";
+                if (xhr.data.list_hs_sap_quahan.length > 0) {
+                    html += `<div class="d-flex align-items-center mb-6">
+                                                <div class="symbol symbol-40 symbol-light-warning mr-5">
+                                                                    <span class="symbol-label">
+                                                                        <span class="svg-icon svg-icon-lg svg-icon-warning">
+                                                                            <svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                                                                                <g id="Stockholm-icons-/-Code-/-Warning-2" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                                                                    <rect id="bound" x="0" y="0" width="24" height="24"></rect>
+                                                                                    <path d="M11.1669899,4.49941818 L2.82535718,19.5143571 C2.557144,19.9971408 2.7310878,20.6059441 3.21387153,20.8741573 C3.36242953,20.9566895 3.52957021,21 3.69951446,21 L21.2169432,21 C21.7692279,21 22.2169432,20.5522847 22.2169432,20 C22.2169432,19.8159952 22.1661743,19.6355579 22.070225,19.47855 L12.894429,4.4636111 C12.6064401,3.99235656 11.9909517,3.84379039 11.5196972,4.13177928 C11.3723594,4.22181902 11.2508468,4.34847583 11.1669899,4.49941818 Z" id="Path-117" fill="#000000" opacity="0.3"></path>
+                                                                                    <rect id="Rectangle-9" fill="#000000" x="11" y="9" width="2" height="7" rx="1"></rect>
+                                                                                    <rect id="Rectangle-9-Copy" fill="#000000" x="11" y="17" width="2" height="2" rx="1"></rect>
+                                                                                </g>
+                                                                            </svg>
+                                                                        </span>
+                                                                    </span>
+                                                                </div>
+                                                <div class="d-flex flex-column font-weight-bold">
+                                                    <span style='color: black'>Danh sach số lưu hồ sơ sắp quá hạn: ${xhr.data.list_hs_sap_quahan.join(", ")}.</span>
+                                                </div>
+                                            </div>`;
+                }
+                if (xhr.data.list_hs_quahan.length > 0) {
+                    html += `<div class="d-flex align-items-center mb-6">
+                                    <div class="symbol symbol-40 symbol-light-danger mr-5">
+                                                                    <span class="symbol-label">
+                                                                        <span class="svg-icon svg-icon-lg svg-icon-danger">
+                                                                            <svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                                                                                <g id="Stockholm-icons-/-Code-/-Warning-2" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                                                                    <rect id="bound" x="0" y="0" width="24" height="24"></rect>
+                                                                                    <path d="M11.1669899,4.49941818 L2.82535718,19.5143571 C2.557144,19.9971408 2.7310878,20.6059441 3.21387153,20.8741573 C3.36242953,20.9566895 3.52957021,21 3.69951446,21 L21.2169432,21 C21.7692279,21 22.2169432,20.5522847 22.2169432,20 C22.2169432,19.8159952 22.1661743,19.6355579 22.070225,19.47855 L12.894429,4.4636111 C12.6064401,3.99235656 11.9909517,3.84379039 11.5196972,4.13177928 C11.3723594,4.22181902 11.2508468,4.34847583 11.1669899,4.49941818 Z" id="Path-117" fill="#000000" opacity="0.3"></path>
+                                                                                    <rect id="Rectangle-9" fill="#000000" x="11" y="9" width="2" height="7" rx="1"></rect>
+                                                                                    <rect id="Rectangle-9-Copy" fill="#000000" x="11" y="17" width="2" height="2" rx="1"></rect>
+                                                                                </g>
+                                                                            </svg>
+                                                                        </span>
+                                                                    </span>
+                                                                </div>
+                                                <div class="d-flex flex-column font-weight-bold">
+                                                    <span style="color: black">Danh sach số lưu hồ sơ đã quá hạn: ${xhr.data.list_hs_quahan.join(", ")}.</span>
+                                                </div>
+                                            </div>`;
+                }
+                if (xhr.data.list_hs_trinh_lanhdao_cuc.length > 0) {
+                    html += `<div class="d-flex align-items-center mb-6">
+                                                <div class="symbol symbol-40 symbol-light-success mr-5">
+                                                                    <span class="symbol-label">
+                                                                        <span class="svg-icon svg-icon-lg svg-icon-success">
+                                                                            <svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                                                                                <g id="Stockholm-icons-/-Files-/-File-done" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                                                                    <polygon id="Shape" points="0 0 24 0 24 24 0 24"></polygon>
+                                                                                    <path d="M5.85714286,2 L13.7364114,2 C14.0910962,2 14.4343066,2.12568431 14.7051108,2.35473959 L19.4686994,6.3839416 C19.8056532,6.66894833 20,7.08787823 20,7.52920201 L20,20.0833333 C20,21.8738751 19.9795521,22 18.1428571,22 L5.85714286,22 C4.02044787,22 4,21.8738751 4,20.0833333 L4,3.91666667 C4,2.12612489 4.02044787,2 5.85714286,2 Z M10.875,15.75 C11.1145833,15.75 11.3541667,15.6541667 11.5458333,15.4625 L15.3791667,11.6291667 C15.7625,11.2458333 15.7625,10.6708333 15.3791667,10.2875 C14.9958333,9.90416667 14.4208333,9.90416667 14.0375,10.2875 L10.875,13.45 L9.62916667,12.2041667 C9.29375,11.8208333 8.67083333,11.8208333 8.2875,12.2041667 C7.90416667,12.5875 7.90416667,13.1625 8.2875,13.5458333 L10.2041667,15.4625 C10.3958333,15.6541667 10.6354167,15.75 10.875,15.75 Z" id="Combined-Shape" fill="#000000" fill-rule="nonzero" opacity="0.3"></path>
+                                                                                    <path d="M10.875,15.75 C10.6354167,15.75 10.3958333,15.6541667 10.2041667,15.4625 L8.2875,13.5458333 C7.90416667,13.1625 7.90416667,12.5875 8.2875,12.2041667 C8.67083333,11.8208333 9.29375,11.8208333 9.62916667,12.2041667 L10.875,13.45 L14.0375,10.2875 C14.4208333,9.90416667 14.9958333,9.90416667 15.3791667,10.2875 C15.7625,10.6708333 15.7625,11.2458333 15.3791667,11.6291667 L11.5458333,15.4625 C11.3541667,15.6541667 11.1145833,15.75 10.875,15.75 Z" id="check-path" fill="#000000"></path>
+                                                                                </g>
+                                                                            </svg>
+                                                                        </span>
+                                                                    </span>
+                                                                </div>
+                                                <div class="d-flex flex-column font-weight-bold">
+                                                    <span style='color: black'>Danh sach số lưu hồ sơ đã trình lãnh đạo cục: ${xhr.data.list_hs_trinh_lanhdao_cuc.join(", ")}.</span>
+                                                </div>
+                                            </div>`;
+                }
+                if (xhr.data.list_hs_yeucau_phoihop.length > 0) {
+                    html += `<div class="d-flex align-items-center mb-6">
+                                                <div class="symbol symbol-40 symbol-light-info mr-5">
+                                                                    <span class="symbol-label">
+                                                                        <span class="svg-icon svg-icon-lg svg-icon-info">
+                                                                           <svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                                                                                <g id="Stockholm-icons-/-Communication-/-Group" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                                                                    <polygon id="Shape" points="0 0 24 0 24 24 0 24"></polygon>
+                                                                                    <path d="M18,14 C16.3431458,14 15,12.6568542 15,11 C15,9.34314575 16.3431458,8 18,8 C19.6568542,8 21,9.34314575 21,11 C21,12.6568542 19.6568542,14 18,14 Z M9,11 C6.790861,11 5,9.209139 5,7 C5,4.790861 6.790861,3 9,3 C11.209139,3 13,4.790861 13,7 C13,9.209139 11.209139,11 9,11 Z" id="Combined-Shape" fill="#000000" fill-rule="nonzero" opacity="0.3"></path>
+                                                                                    <path d="M17.6011961,15.0006174 C21.0077043,15.0378534 23.7891749,16.7601418 23.9984937,20.4 C24.0069246,20.5466056 23.9984937,21 23.4559499,21 L19.6,21 C19.6,18.7490654 18.8562935,16.6718327 17.6011961,15.0006174 Z M0.00065168429,20.1992055 C0.388258525,15.4265159 4.26191235,13 8.98334134,13 C13.7712164,13 17.7048837,15.2931929 17.9979143,20.2 C18.0095879,20.3954741 17.9979143,21 17.2466999,21 C13.541124,21 8.03472472,21 0.727502227,21 C0.476712155,21 -0.0204617505,20.45918 0.00065168429,20.1992055 Z" id="Combined-Shape" fill="#000000" fill-rule="nonzero"></path>
+                                                                                </g>
+                                                                            </svg>
+                                                                        </span>
+                                                                    </span>
+                                                                </div>
+                                                <div class="d-flex flex-column font-weight-bold">
+                                                    <span style='color: black'>Danh sach số lưu hồ sơ được yêu cầu phối hợp: ${xhr.data.list_hs_yeucau_phoihop.join(", ")}.</span>
+                                                </div>
+                                            </div>`;
+                }
+                if (xhr.data.list_hs_sap_quahan_traloi_yeucau.length > 0) {
+                    html += `<div class="d-flex align-items-center mb-6">
+                                                <div class="symbol symbol-40 symbol-light-warning mr-5">
+                                                                    <span class="symbol-label">
+                                                                        <span class="svg-icon svg-icon-lg svg-icon-warning">
+                                                                            <svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                                                                                <g id="Stockholm-icons-/-Code-/-Warning-2" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                                                                    <rect id="bound" x="0" y="0" width="24" height="24"></rect>
+                                                                                    <path d="M11.1669899,4.49941818 L2.82535718,19.5143571 C2.557144,19.9971408 2.7310878,20.6059441 3.21387153,20.8741573 C3.36242953,20.9566895 3.52957021,21 3.69951446,21 L21.2169432,21 C21.7692279,21 22.2169432,20.5522847 22.2169432,20 C22.2169432,19.8159952 22.1661743,19.6355579 22.070225,19.47855 L12.894429,4.4636111 C12.6064401,3.99235656 11.9909517,3.84379039 11.5196972,4.13177928 C11.3723594,4.22181902 11.2508468,4.34847583 11.1669899,4.49941818 Z" id="Path-117" fill="#000000" opacity="0.3"></path>
+                                                                                    <rect id="Rectangle-9" fill="#000000" x="11" y="9" width="2" height="7" rx="1"></rect>
+                                                                                    <rect id="Rectangle-9-Copy" fill="#000000" x="11" y="17" width="2" height="2" rx="1"></rect>
+                                                                                </g>
+                                                                            </svg>
+                                                                        </span>
+                                                                    </span>
+                                                                </div>
+                                                <div class="d-flex flex-column font-weight-bold">
+                                                    <span style='color: black'>Danh sach số lưu hồ sơ sắp quá hạn trả lời yêu cầu: ${xhr.data.list_hs_sap_quahan_traloi_yeucau.join(", ")}.</span>
+                                                </div>
+                                            </div>`;
+                }
+                if (xhr.data.list_hs_quahan_traloi_yeucau.length > 0) {
+                    html += `<div class="d-flex align-items-center mb-6">
+                                                <div class="symbol symbol-40 symbol-light-danger mr-5">
+                                                                    <span class="symbol-label">
+                                                                        <span class="svg-icon svg-icon-lg svg-icon-danger">
+                                                                            <svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                                                                                <g id="Stockholm-icons-/-Code-/-Warning-2" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                                                                    <rect id="bound" x="0" y="0" width="24" height="24"></rect>
+                                                                                    <path d="M11.1669899,4.49941818 L2.82535718,19.5143571 C2.557144,19.9971408 2.7310878,20.6059441 3.21387153,20.8741573 C3.36242953,20.9566895 3.52957021,21 3.69951446,21 L21.2169432,21 C21.7692279,21 22.2169432,20.5522847 22.2169432,20 C22.2169432,19.8159952 22.1661743,19.6355579 22.070225,19.47855 L12.894429,4.4636111 C12.6064401,3.99235656 11.9909517,3.84379039 11.5196972,4.13177928 C11.3723594,4.22181902 11.2508468,4.34847583 11.1669899,4.49941818 Z" id="Path-117" fill="#000000" opacity="0.3"></path>
+                                                                                    <rect id="Rectangle-9" fill="#000000" x="11" y="9" width="2" height="7" rx="1"></rect>
+                                                                                    <rect id="Rectangle-9-Copy" fill="#000000" x="11" y="17" width="2" height="2" rx="1"></rect>
+                                                                                </g>
+                                                                            </svg>
+                                                                        </span>
+                                                                    </span>
+                                                                </div>
+                                                <div class="d-flex flex-column font-weight-bold">
+                                                    <span style='color: black'>Danh sach số lưu hồ sơ đã quá hạn trả lời yêu cầu: ${xhr.data.list_hs_quahan_traloi_yeucau.join(", ")}.</span>
+                                                </div>
+                                            </div>`;
+                }
+                if (xhr.data.list_hs_chua_traloi_yeucau.length > 0) {
+                    html += `<div class="d-flex align-items-center mb-6">
+                                                <div class="symbol symbol-40 symbol-light-warning mr-5">
+                                                                    <span class="symbol-label">
+                                                                        <span class="svg-icon svg-icon-lg svg-icon-warning">
+                                                                            <svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                                                                                <g id="Stockholm-icons-/-Communication-/-Share" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                                                                    <rect id="bound" x="0" y="0" width="24" height="24"></rect>
+                                                                                    <path d="M10.9,2 C11.4522847,2 11.9,2.44771525 11.9,3 C11.9,3.55228475 11.4522847,4 10.9,4 L6,4 C4.8954305,4 4,4.8954305 4,6 L4,18 C4,19.1045695 4.8954305,20 6,20 L18,20 C19.1045695,20 20,19.1045695 20,18 L20,16 C20,15.4477153 20.4477153,15 21,15 C21.5522847,15 22,15.4477153 22,16 L22,18 C22,20.209139 20.209139,22 18,22 L6,22 C3.790861,22 2,20.209139 2,18 L2,6 C2,3.790861 3.790861,2 6,2 L10.9,2 Z" id="Path-57" fill="#000000" fill-rule="nonzero" opacity="0.3"></path>
+                                                                                    <path d="M24.0690576,13.8973499 C24.0690576,13.1346331 24.2324969,10.1246259 21.8580869,7.73659596 C20.2600137,6.12944276 17.8683518,5.85068794 15.0081639,5.72356847 L15.0081639,1.83791555 C15.0081639,1.42370199 14.6723775,1.08791555 14.2581639,1.08791555 C14.0718537,1.08791555 13.892213,1.15726043 13.7542266,1.28244533 L7.24606818,7.18681951 C6.93929045,7.46513642 6.9162184,7.93944934 7.1945353,8.24622707 C7.20914339,8.26232899 7.22444472,8.27778811 7.24039592,8.29256062 L13.7485543,14.3198102 C14.0524605,14.6012598 14.5269852,14.5830551 14.8084348,14.2791489 C14.9368329,14.140506 15.0081639,13.9585047 15.0081639,13.7695393 L15.0081639,9.90761477 C16.8241562,9.95755456 18.1177196,10.0730665 19.2929978,10.4469645 C20.9778605,10.9829796 22.2816185,12.4994368 23.2042718,14.996336 L23.2043032,14.9963244 C23.313119,15.2908036 23.5938372,15.4863432 23.9077781,15.4863432 L24.0735976,15.4863432 C24.0735976,15.0278051 24.0690576,14.3014082 24.0690576,13.8973499 Z" id="Shape" fill="#000000" fill-rule="nonzero" transform="translate(15.536799, 8.287129) scale(-1, 1) translate(-15.536799, -8.287129) "></path>
+                                                                                </g>
+                                                                            </svg>
+                                                                        </span>
+                                                                    </span>
+                                                                </div>
+                                                <div class="d-flex flex-column font-weight-bold">
+                                                    <span style='color: black'>Danh sach số lưu hồ sơ gửi yêu cầu chưa trả lời: ${xhr.data.list_hs_chua_traloi_yeucau.join(", ")}.</span>
+                                                </div>
+                                            </div>`;
+                }
+                $('#topbar_notifications_notifications').find('.scroll').append(html);
+            }
+        })
+        $(document).on('click', ".btn-close", function (e) {
+            $("#OldPasswd").val("");
+            $("#NewPasswd").val("");
+            $("#ConfirmNewPasswd").val("");
+        });
+        $(document).on("click", ".change-password", function () {
+            let model = {};
+            model.OldPasswd = $("#OldPasswd").val();
+            model.NewPasswd = $("#NewPasswd").val();
+            model.ConfirmNewPasswd = $("#ConfirmNewPasswd").val();
+            $.ajax({
+                url: '/account/changePassword',
+                method: 'post',
+                dataType: 'json',
+                data: { model: model }
+            }).done((xhr) => {
+                if (xhr.Succeeded) {
+                    swal({
+                        title: "Thành công",
+                        text: "Đổi mật khẩu thành công!",
+                        icon: "success",
+                    }).then((result) => {
+                        if (result) {
+                            window.location.href = '/account/logout';
+                        };
+                    });
+                } else {
+                    swal(
+                        'Đổi mật khẩu thất bại!',
+                        xhr.Errors[0].Description,
+                        'error'
+                    );
+                }
+            }).fail(() => {
+                swal(
+                    'Lỗi!',
+                    'Hệ thống gặp lỗi! Vui lòng thử lại sau.',
+                    'error',
+                );
+            });
+        })
+    </script>
+    <!--end::Page Scripts-->
+</body>
+
+<!--end::Body-->
+
+</html>

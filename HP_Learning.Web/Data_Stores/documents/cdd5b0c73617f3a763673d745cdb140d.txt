@@ -1,0 +1,33 @@
+ Ma nhan vien: NV-0001
+Ho va ten: GP3SZ8M7B7T2C3
+Ngay sinh: 8/22/2338 12:00:00 AM
+So dien thoai:2487697991
+Dia chi: 6HTJFM5BJF
+Chuc vu: nhan vien
+Nam cong tac: 7
+-----------------------------------------------------
+Ma nhan vien: NV-0002
+Ho va ten: 7JUCTUF8KD0BKY
+Ngay sinh: 4/21/1877 12:00:00 AM
+So dien thoai:5405774756
+Dia chi: NPH1P0GLIL
+Chuc vu: nhan vien
+Nam cong tac: 6
+-----------------------------------------------------
+Ma nhan vien: NV-0003
+Ho va ten: EPVAZCGGJUS6KT
+Ngay sinh: 1/24/1218 12:00:00 AM
+So dien thoai:2413087503
+Dia chi: KLDNPD6NAS
+Chuc vu: nhan vien
+Nam cong tac: 5
+-----------------------------------------------------
+Ma nhan vien: NV-0004
+Ho va ten: 9ZITID4T7HWXBC
+Ngay sinh: 2/23/1484 12:00:00 AM
+So dien thoai:0585679812
+Dia chi: D2NG2UVI17
+Chuc vu: nhan vien
+Nam cong tac: 8
+-----------------------------------------------------
+{}{}{}{}{}{}{}{}{}{}

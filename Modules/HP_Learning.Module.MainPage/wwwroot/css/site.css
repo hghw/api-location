@@ -1,0 +1,59 @@
+﻿.ui.menu .item {
+    font-weight: 700;
+}
+#countdown{
+    font-size: 50px;
+}
+#note {
+    color: #666666;
+    font-size: 12px;
+    margin: 0 auto;
+    padding: 4px;
+    text-align: center;
+    text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.3);
+    width: 400px;
+}
+.timeCount {
+    border-radius: 8px;
+    background-color: #808080;
+    padding: 10px;
+    color: #fff;
+    font-weight: 700;
+    font-family: alarm-clock,serif;
+}
+.txt-thi {
+    color: #000;
+    font-weight: 700;
+    font-size: 25px;
+    margin-top: 20px;
+    font-family: 'Comfortaa', sans-serif;
+}
+.date {
+    padding: 0 5px;
+    background-color: #808080;
+    border-radius: 8px;
+    color: #fff;
+}
+.ui.footer.segment {
+    padding: 2em 0em;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+}
+.txt-time {
+    font-style: italic;
+    font-family: 'Comfortaa', sans-serif; 
+    font-size: 18px;
+    font-weight: 500;
+}
+
+@media only screen and (max-width: 1920px) {
+    body {
+        height: 160%;
+    }
+}
+
+body {
+    position: relative;
+}

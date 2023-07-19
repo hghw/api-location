@@ -1,0 +1,202 @@
+﻿import Layout from "../base";
+import "./style.scss";
+import moment, { duration } from "moment"
+import "metronic-theme/vendors/datatables.net";
+import Utils from '../../../helpers/utils';
+import { EnumStatus, EnumAlert, EnumAction, EnumStatusVI, EnumResponseStatus } from "../../../helpers/enum";
+import { data } from "jquery";
+import Swal from 'sweetalert2';
+//Upload file
+import '@uppy/core/dist/style.css';
+import '@uppy/file-input/dist/style.css';
+import '@uppy/informer/dist/style.css';
+import '@uppy/status-bar/dist/style.css';
+import Core from '@uppy/core';
+import FileInput from '@uppy/file-input';
+import Informer from '@uppy/informer';
+export default class FAQ extends Layout {
+    constructor() {
+        super();
+        this._event();
+        this._upLoadFile(file);
+
+    }
+    
+    _event() {
+        let root = this;
+        //Add file to Uppy
+        let bindFile = function (file) {
+            let dataFile = {
+                Id: file.Id,
+                store_file_name: file.StoreFileName,
+                name: file.FileName,
+                type: file.MimeType,
+                size: file.FileSize,
+                url: file.Url,
+            };
+            root.g_UppyFile.addFile({
+                name: file.FileName,
+                type: file.MimeType,
+                data: dataFile
+            });
+        }
+        //ResetFile
+        let resetFile = () => {
+            if (root.g_UppyFile.getFiles().length > 0) {
+                let id = root.g_UppyFile.getFiles()[0].id;
+                root.g_UppyFile.removeFile(id);
+                $(".uppy-list").empty();
+            }
+        }
+        let upFile = () => {
+            let file = root.g_UppyFile.getFiles()[0];
+            if (file) {
+                data.file.FileName = file.name;
+                data.file.MimeType = file.type;
+                data.file.FileSize = file.size;
+                let raw = file.data;
+                if (!file.data.Id) {
+                    let fileFormData = new FormData();
+                    fileFormData.append("chunkContent", raw);
+                    Utils.ajaxPostFile({
+                        type: "post",
+                        url: '/_upload/documents',
+                        formData: fileFormData,
+                    }).done(xhr => {
+                        if (xhr.status === "OK") {
+                            data.file.StoreFileName = xhr.data;
+                            data.file.Url = "/_documents/" + xhr.data;
+                        }
+                    })
+                } else {
+                    data.file.Id = file.data.Id;
+                    data.file.StoreFileName = file.data.store_file_name;
+                    data.file.Url = file.data.url;
+                }
+            }
+
+        }
+    }
+    _upLoadFile(element) {
+        let root = this;
+        var elemId = element;
+        var id = '#' + elemId;
+        var $FileStatusBar = $(id + ' .uppy-status');
+        var $FileList = $(id + ' .uppy-list');
+
+        var uppyMin = Core({
+            debug: true,
+            autoProceed: true,
+            showProgressDetails: true,
+            restrictions: {
+                maxFileSize: 100000000,
+                maxNumberOfFiles: 1,
+                minNumberOfFiles: 1,
+            },
+        });
+
+        uppyMin.use(FileInput, { target: id + ' .uppy-wrapper', pretty: false });
+        uppyMin.use(Informer, { target: id + ' .uppy-informer' });
+
+        $(id + ' .uppy-FileInput-input').addClass('uppy-input-control').attr('id', elemId + '_input_control');
+        $(id + ' .uppy-FileInput-container').append('<label class="uppy-input-label btn btn-light-primary btn-sm btn-bold" for="' + (elemId + '_input_control') + '">Chọn file</label>');
+
+        var $fileLabel = $(id + ' .uppy-input-label');
+
+        uppyMin.on('files-added', function (files) {
+            $.each(files, function (index, value) {
+                var sizeLabel = "bytes";
+                var filesize = value.size;
+                if (filesize > 1024) {
+                    filesize = filesize / 1024;
+                    sizeLabel = "kb";
+
+                    if (filesize > 1024) {
+                        filesize = filesize / 1024;
+                        sizeLabel = "MB";
+                    }
+                }
+                var ListFileHtml = '<div class="uppy-list-item" data-id="' + value.id + '"><div class="uppy-list-label">' + value.name +
+                    ' (' + Math.round(filesize, 2) + ' ' + sizeLabel + ')</div><span class="uppy-list-remove" data-id="' + value.id + '">\
+                    <i class="flaticon2-cancel-music"></i ></span ></div > ';
+                $FileList.append(ListFileHtml);
+            });
+
+            $fileLabel.text("Thêm file");
+
+            $FileStatusBar.addClass('uppy-status-hidden');
+            $FileStatusBar.removeClass('uppy-status-ongoing');
+        });
+
+        $(document).on('click', id + ' .uppy-list .uppy-list-remove', function () {
+            var itemId = $(this).attr('data-id');
+            uppyMin.removeFile(itemId);
+            $(id + ' .uppy-list-item[data-id="' + itemId + '"').remove();
+        });
+        root.g_UppyFile = uppyMin;
+    }
+    _SaveFaq = function (data) {
+        let root = this;
+        $.ajax({
+            type: "post",
+            url: "/cms/Faq/createOrUpdate/",
+            data: data,
+            dataType: "json",
+            success: function (xhr) {
+                if (xhr.status == EnumStatus.OK) {
+                    $("#CreateOrUpdateModal").modal("hide");
+                    Swal.fire('Thành công', 'Lưu faq thành công', 'success');
+                    root.dataTable.ajax.reload();
+                }
+                else {
+                    Swal.fire('Thất bại', 'Lưu faq thất bại', 'error');
+                }
+            },
+            error: (xhr) => {
+                Swal.fire('Lỗi', 'Đã xảy ra lỗi. Vui lòng thử lại', 'error');
+            }
+        });
+    }
+    _Save = function () {
+        let root = this;
+        let formData = $("#CreateOrUpdateForm").serializeArray();
+        let data = {};
+        formData.forEach(item => {
+            data[item.name] = item.value;
+        });
+        data['faq_dinhkem'] = {};
+        let file = root.g_UppyFile.getFiles()[0];
+        if (file) {
+            data.faq_dinhkem.FileName = file.name;
+            data.faq_dinhkem.MimeType = file.type;
+            data.faq_dinhkem.FileSize = file.size;
+            let raw = file.data;
+            if (!file.data.Id) {
+                let fileFormData = new FormData();
+                fileFormData.append("chunkContent", raw);
+                Utils.ajaxPostFile({
+                    type: "post",
+                    url: '/_upload/documents',
+                    formData: fileFormData,
+                }).done(xhr => {
+                    if (xhr.status === "OK") {
+                        data.faq_dinhkem.StoreFileName = xhr.data;
+                        data.faq_dinhkem.Url = "/_documents/" + xhr.data;
+                        root._SaveFaq(data);
+                    }
+                })
+            } else {
+                data.faq_dinhkem.Id = file.data.Id;
+                data.faq_dinhkem.StoreFileName = file.data.store_file_name;
+                data.faq_dinhkem.Url = file.data.url;
+                root._SaveFaq(data);
+            }
+            
+        }
+        else {
+            root._SaveFaq(data)
+        }
+    };
+}
+
+new FAQ();

@@ -1,0 +1,349 @@
+import Layout from "../_layout"
+import "metronic-theme/vendors/datatables.net";
+import './index.scss';
+
+import 'jquery-validation';
+import "../../../static/libs/jquery.binding.js";
+import "line-awesome/dist/line-awesome/css/line-awesome.css";
+import 'jquery-form';
+import Swal from "sweetalert2"
+
+export default class Dashboard extends Layout {
+    constructor() {
+        super();
+        this._initTable();
+        this._event();
+        this.order_number = 0;
+    }
+
+    _initTable() {
+        $('#kt_select2_1').select2({
+            allowClear: true,
+            placeholder: "[Chọn Đơn Vị Quản Lý Địa Bàn]"
+        });
+        $('#kt_select2_1').val(null).trigger('change');
+        let table = $('#kt_datatable');
+        let root = this;
+        // begin first table
+        this.otable = table.DataTable({
+            order: [[2, "asc"]],
+            responsive: true,
+            oLanguage: {
+                "sSearch": "Tìm Kiếm : ",
+                "sInfo": "Danh sách từ _START_ tới _END_ ",
+                "sLengthMenu": '<select class="custom-select custom-select-sm form-control form-control-sm">' +
+                    '<option value="5">5</option>' +
+                    '<option value="8">8</option>' +
+                    '<option value="10">10</option>' +
+                    '<option value="25">25</option>' +
+                    '<option value="50">50</option>' +
+                    '<option value="-1">Tất Cả</option>' +
+                    '</select>' +
+                    '<button class="btn btn-light-danger btn-sm" style="margin-left:8px;" id="del-multi-btn" hidden>Xóa chủ đầu tư  đã chọn</button>',
+
+            },
+
+            ajax: {
+                url: '/XLHS/chudautu/getlistdata',
+                type: 'Get',
+            },
+            columns: [
+                { data: 'id' },
+                { data: 'id', className: "text-center" },
+                { data: 'ten_donvi'},
+                { data: 'khu_vuc' },
+                { data: 'dia_chi' },
+                { data: 'canbo_quanly_diaban' },
+                { data: 'id', responsivePriority: -1, className: "text-center" },
+            ],
+            columnDefs: [
+                {
+                    targets: -1,
+                    orderable: false,
+                    width: '10%',
+                    render: function (data, type, full, meta) {
+                        return `
+							
+							<a href="javascript:;" id="edit-`+ data + `" class="btn btn-sm btn-clean btn-icon edit-btn" title="Chỉnh sửa">\
+                            <i class="far fa-edit"></i>\
+							</a>
+							<a href="javascript:;" id="del-`+ data + `" class="btn btn-sm btn-clean btn-icon del-btn" title="Xóa">\
+                            <i class="far fa-trash-alt"></i>\
+							</a>\
+						`;
+                    },
+                },
+                {
+                    targets: -6,
+                    width: '4%',
+                    render: function (data, type, full, meta) {
+                        root.order_number += 1;
+                        return root.order_number;
+                    },
+                },
+                {
+                    orderable: false,
+                    targets: -7,
+                    width: '6%',
+                    render: function (data, type, full, meta) {
+                        return '<div class="checkbox-inline justify-content-center"><label class="checkbox checkbox-primary"><input type="checkbox" class="checkbox-table" id="check-' + data + '"/><span></span></label>';
+                    },
+                },
+            ],
+        });
+    }
+
+    _event() {
+        let root = this;
+        $(document).on('click', '.edit-btn', function () {
+            let id = $(this).attr('id').substring(5);
+            $.ajax({
+                type: "get",
+                url: "/XLHS/chudautu/getitem",
+                data: { id: id },
+                dataType: "json",
+                success: function (res) {
+                    $('#kt_select2_1').val(res.data.canbo_quanly_diaban).trigger('change');
+                    $('#addModal').find('.modal-title').text('Cập nhật chủ đầu tư');
+                    $('#addModal').bindings('create')(res.data, '#addModal');
+                    $('#addModal').modal();
+                }
+            });
+
+
+        })
+        let validOptsCreate = {
+            errorElement: 'span', //default input error message container
+            errorClass: 'help-block help-block-error text-danger', // default input error message class
+            focusInvalid: true, // do not focus the last invalid input
+            ignore: "", // validate all fields including form hidden input
+            rules: {
+                ten_donvi: {
+                    required: true,
+                },
+                khu_vuc: {
+                    required: true,
+                },
+                dia_chi: {
+                    required: true,
+                },
+
+            },
+            messages: {
+                ten_donvi: {
+                    required: "Vui lòng nhập tên đơn vị gửi",
+                },
+                khu_vuc: {
+                    required: "Vui lòng nhập khu vực",
+                },
+                dia_chi: {
+                    required: "Vui lòng nhập địa chỉ",
+                }
+            },
+            invalidHandler: function (event, validator) { //display error alert on form submit
+            },
+
+            highlight: function (element) { // hightlight error inputs
+                $(element).closest('.form-group').removeClass("has-success").addClass(
+                    'has-error'); // set error class to the control group
+            },
+
+            unhighlight: function (element) { // revert the change done by hightlight
+            },
+
+            success: function (label, element) {
+                var icon = $(element).parent('.input-icon').find('i');
+                $(element).closest('.form-group').removeClass('has-error').addClass(
+                    'has-success'); // set success class to the control group
+                icon.removeClass("fa-warning").addClass("fa-check");
+            },
+
+            submitHandler: (form) => {
+                var form = $('#addFormSubmit')[0]
+                var formData = new FormData(form);
+                formData.append("canbo_quanly_diaban", $(":selected").val().substring(2));
+                Swal.fire({
+                    title: 'Đang xử lý!',
+                    html: '<div class="loader-upload text-center"><div>',
+                    showConfirmButton: false
+                });
+                //
+                $.ajax({
+                    url: "/XLHS/chudautu/createorupdate",
+                    data: formData,
+                    type: "POST",
+                    processData: false,
+                    contentType: false,
+                    success: (xhr) => {
+                        Swal.close();
+                        if (xhr.status == "OK") {
+                            $('.modal').modal('hide');
+                            Swal.fire('Thành công', 'Cập nhật thành công', 'success');
+                            //
+                            $('#addForm').trigger('reset');
+                            root.order_number = 0;
+                            root.otable.ajax.reload();
+                        } else {
+                            Swal.fire('Thêm thất bại', xhr.errors[0].message, 'error');
+                        }
+                    },
+                    error: function (xhr) {
+                        Swal.close();
+                        Swal.fire('Lỗi', xhr.errors[0].message, 'error');
+                    }
+                });
+
+            }
+        };
+
+        $('#addFormSubmit').validate(validOptsCreate);
+        $(document).on('click', '#addsubmitBtn', function () {
+            $('#addFormSubmit').submit();
+        });
+        $(document).on('change', '.checkbox-table', function () {
+            let isCheck = false;
+            $('.checkbox-table').each((i, e) => {
+                if ($(e).is(':checked')) {
+                    isCheck = true;
+                    return false;
+                }
+
+            })
+            if (isCheck) {
+                $('#del-multi-btn').prop('hidden', false);
+
+            }
+            else {
+                $('#del-multi-btn').prop('hidden', true);
+            }
+        })
+        $(document).on('click', '.checkbox-toggle-btn', () => {
+            let isCheck = false;
+            $('.checkbox-table').each((i, e) => {
+                if ($(e).is(':checked')) {
+                    isCheck = true;
+                    return false;
+                }
+
+            })
+            if (isCheck) {
+                $('#del-multi-btn').prop('hidden', true);
+                $('.checkbox-table').prop('checked', false);
+            }
+            else {
+                $('#del-multi-btn').prop('hidden', false);
+                $('.checkbox-table').prop('checked', true);
+            }
+
+        });
+        $('#addModal').on('hidden.bs.modal', function () {
+            $('#addModal form').trigger('reset');
+            $('#addModal').find('.modal-title').text('Thêm Chủ Đầu Tư');
+            $('#addModal form').find('.help-block').each(function (index, value) {
+                $(value).remove();
+            });
+            $('#kt_select2_1').val(null).trigger('change');
+        });
+        $(document).on('click', '#del-multi-btn', function (e) {
+            var checked_ids = [];
+            $('.checkbox-table').each(function (i, e) {
+                if ($(e).is(':checked')) {
+                    checked_ids.push(root.otable.row($(this).parents('tr')).data().id);
+                }
+
+            })
+            Swal.fire({
+                title: 'Bạn có chắc chắn muốn xóa?',
+                text: ' Những chủ đầu tư đã chọn sẽ bị xóa!',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                cancelButtonText: 'Hủy',
+                confirmButtonText: 'Đồng ý'
+            }).then((result) => {
+                if (result.value) {
+                    $.ajax({
+                        type: "post",
+                        url: "/XLHS/chudautu/deleteMultiItem",
+                        data: { ids: checked_ids },
+                        dataType: "json",
+                    }).done((xhr) => {
+                        if (xhr.status === "OK") {
+                            Swal.fire(
+                                'Thành công!',
+                                ' Các chủ đầu tư đã bị xóa!',
+                                'success'
+                            );
+                            root.order_number = 0;
+                            root.otable.ajax.reload();
+                            $('#del-multi-btn').prop('hidden', true);
+                        } else {
+                            Swal.fire(
+                                'Xóa thất bại!',
+                                xhr.errors[0].message,
+                                'error'
+                            );
+                        }
+                    }).fail(() => {
+                        Swal.fire(
+                            'Lỗi!',
+                            'Hệ thống gặp lỗi! Vui lòng thử lại sau.',
+                            'error'
+                        );
+                    });
+                }
+            });
+
+        });
+        $(document).on('click', '.del-btn', function (e) {
+            let id = $(this).attr('id').substring(4);
+            Swal.fire({
+                title: 'Bạn có chắc chắn muốn xóa?',
+                text: 'Chủ đầu tư sẽ bị xóa!',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                cancelButtonText: 'Hủy',
+                confirmButtonText: 'Đồng ý'
+            }).then((result) => {
+                if (result.value) {
+                    $.ajax({
+                        url: '/XLHS/chudautu/delete',
+                        type: 'get',
+                        dataType: 'json',
+                        contentType: "application/json; charset=utf-8",
+                        data: { id: id }
+                    }).done((xhr) => {
+                        if (xhr.status === "OK") {
+                            Swal.fire(
+                                'Thành công!',
+                                'Chủ đầu tư đã bị xóa!',
+                                'success'
+                            );
+                            root.order_number = 0;
+                            root.otable.ajax.reload();
+                        } else {
+                            Swal.fire(
+                                'Xóa thất bại!',
+                                xhr.errors[0].message,
+                                'error'
+                            );
+                        }
+                    }).fail(() => {
+                        Swal.fire(
+                            'Lỗi!',
+                            'Hệ thống gặp lỗi! Vui lòng thử lại sau.',
+                            'error'
+                        );
+                    });
+                }
+            });
+
+
+        });
+    }
+}
+
+new Dashboard();

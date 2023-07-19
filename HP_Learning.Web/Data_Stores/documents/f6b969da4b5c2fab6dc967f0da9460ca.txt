@@ -1,0 +1,1796 @@
+using AutoMapper;
+using Dapper;
+using Dapper.FastCrud;
+using H02.Module.Core.Areas.Core.Helpers;
+using H02.Module.NhaDat.Areas.NhaDat.Controllers.Extends;
+using H02.Module.NhaDat.Areas.NhaDat.ViewModels;
+using H02.Module.NhaDat.Enums;
+using H02.Module.NhaDat.Models;
+using H02.Module.NhaDat.Models.Regional;
+using H02.Module.NhaDat.Repositories;
+using H02.Module.NhaNha.Repositories;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting.Internal;
+using Microsoft.Extensions.Logging;
+using NPOI.HSSF.UserModel;
+using NPOI.SS.UserModel;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
+using Smooth.IoC.Repository.UnitOfWork.Extensions;
+using Smooth.IoC.UnitOfWork;
+using Smooth.IoC.UnitOfWork.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using VietGIS.Infrastructure.Enums;
+using VietGIS.Infrastructure.Helpers;
+using VietGIS.Infrastructure.Models.DTO.Response;
+using VietGIS.Infrastructure.ViewModels.GridParams;
+using H02.Module.NhaDat.Helpers;
+using Microsoft.AspNetCore.Authorization;
+using H02.Module.Core.Enums;
+
+namespace H02.Module.NhaDat.Areas.NhaDat.Controllers
+{
+    [Route("[area]/[controller]")]
+    public class HoSoDatController : BaseController
+    {
+        private readonly ILogger<HoSoDatController> _logger;
+        private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly IHoSoDatRepository _hoSoDatRepository;
+        private readonly IHoSoNhaRepository _hoSoNhaRepository;
+        private readonly IFileRepository _fileRepository;
+        private readonly IHoSoDatFileRepository _hoSoDatFileRepository;
+        private readonly IDonViQuanLyRepository _donViQuanLyRepository;
+        private readonly ILoaiDonViQuanLyRepository _loaiDonViQuanLyRepository;
+        private readonly IHoSoNhaFileRepository _hoSoNhaFileRepository;
+
+
+        public HoSoDatController(
+            IDbFactory dbFactory,
+            IMapper mapper,
+            ILogger<HoSoDatController> logger,
+            IHoSoDatRepository hoSoDatRepository,
+            IHoSoNhaRepository hoSoNhaRepository,
+            IFileRepository fileRepository,
+            IHoSoDatFileRepository hoSoDatFileRepository,
+            IDonViQuanLyRepository donViQuanLyRepository,
+            ILoaiDonViQuanLyRepository loaiDonViQuanLyRepository,
+           IHoSoNhaFileRepository hoSoNhaFileRepository,
+            IWebHostEnvironment webHostEnvironment
+            ) : base(dbFactory, mapper)
+        {
+            _logger = logger;
+            _webHostEnvironment = webHostEnvironment;
+            _hoSoDatRepository = hoSoDatRepository;
+            _hoSoNhaRepository = hoSoNhaRepository;
+            _fileRepository = fileRepository;
+            _hoSoDatFileRepository = hoSoDatFileRepository;
+            _donViQuanLyRepository = donViQuanLyRepository;
+            _loaiDonViQuanLyRepository = loaiDonViQuanLyRepository;
+            _hoSoNhaFileRepository = hoSoNhaFileRepository;
+
+        }
+        [Route("")]
+        public IActionResult Index()
+        {
+            return View();
+        }
+        // [Authorize(Policy = EnumsAuthorization.IsAllowedToManageLandRecord)]
+        [HttpGet]
+        [Route("them")]
+        public IActionResult Them()
+        {
+            return View();
+        }
+        [HttpGet]
+        [Route("chinhSua/{id}")]
+        public IActionResult ChinhSua([FromRoute] int id)
+        {
+            using (var session = OpenSession())
+            {
+                HoSoDat data = session.Get(new HoSoDat { id = id });
+                return View("ChinhSua", data);
+            }
+        }
+        [HttpGet]
+        [Route("dieuChinh/{id}/{vanban_dat_id}")]
+        public IActionResult DieuChinh([FromRoute] int id, [FromRoute] int vanban_dat_id)
+        {
+
+            using (var session = OpenSession())
+            {
+                HoSoDat data = session.Get(new HoSoDat { id = id });
+                return View("DieuChinh", data);
+            }
+        }
+        [Route("GetSoLuongHoSoDatTheoTinh")]
+        public IEnumerable<ChartViewModel> GetSoLuongHoSoDatTheoTinh()
+        {
+            using (var session = OpenSession())
+            {
+                var sql = $@"SELECT COUNT(*) AS {nameof(ChartViewModel.value)}, 
+                            {Sql.Table<Province>()}.{nameof(Province.pro_name)} AS {nameof(ChartViewModel.description)},
+                            {Sql.Table<HoSoDat>()}.{nameof(HoSoDat.province_id)} AS {nameof(ChartViewModel.province_id)}
+                            FROM {Sql.Table<HoSoDat>()}
+                            LEFT JOIN {Sql.Table<Province>()}
+                            ON {Sql.Table<HoSoDat>()}.{nameof(HoSoDat.province_id)} = {Sql.Table<Province>()}.{nameof(Province.proid_2004)}
+                            WHERE {Sql.Table<HoSoDat>()}.{nameof(HoSoDat.province_id)} IN (SELECT DISTINCT {nameof(HoSoDat.province_id)} from {Sql.Table<HoSoDat>()})
+                            GROUP BY {Sql.Table<Province>()}.{nameof(Province.pro_name)}, {Sql.Table<HoSoDat>()}.{nameof(HoSoDat.province_id)}
+                            ORDER BY {nameof(ChartViewModel.value)} DESC";
+                return session.Query<ChartViewModel>(sql);
+            }
+        }
+        [HttpPost]
+        [Route("data")]
+        public GridResult<HoSoDat> Data(GridParameters<HoSoDatFilter> param)
+        {
+            return _hoSoDatRepository.FindAndPaginate(param);
+        }
+        [Route("getDataChart")]
+        public RestData GetDataChart()
+        {
+            using (var session = OpenSession())
+            {
+                //var sql = $@"SELECT COUNT(*) AS {nameof(ChartViewModel.value)}, 
+                //            {Sql.Table<Province>()}.{nameof(Province.pro_name)} AS {nameof(ChartViewModel.description)} 
+                //            FROM {Sql.Table<HoSoDat>()}
+                //            LEFT JOIN {Sql.Table<Province>()}
+                //            ON {Sql.Table<HoSoDat>()}.{nameof(HoSoDat.province_id)} = {Sql.Table<Province>()}.{nameof(Province.proid_2004)}
+                //            WHERE {Sql.Table<HoSoDat>()}.{nameof(HoSoDat.province_id)} IN (SELECT DISTINCT {nameof(HoSoDat.province_id)} from {Sql.Table<HoSoDat>()})
+                //            GROUP BY {Sql.Table<Province>()}.{nameof(Province.pro_name)} 
+                //            ORDER BY {nameof(ChartViewModel.value)} DESC";
+                //var data = session.Query<ChartViewModel>(sql);
+                return new RestData
+                {
+                    data = GetSoLuongHoSoDatTheoTinh()
+                };
+            }
+        }
+        [HttpPost]
+        [Route("listHoSoDat")]
+        public IActionResult getListHoSoDat(DatatableNhaDatSearchParams dataTb)
+        {
+            using (var session = OpenSession())
+            {
+                var condition = "true ";
+                int total = session.Count<HoSoDat>();
+                int searchTotal;
+                string orderByCondition = $"{Sql.Table<LoaiDonViQuanLy>()}.{nameof(HoSoDat.loai_donvi_quanly.ten)} ASC, {Sql.Table<DonViQuanLy>()}.{nameof(HoSoDat.donvi_quanly.ten)} ASC, {Sql.Table<DonViSuDung>()}.{nameof(DonViSuDung.loai_donvi_sudung_id)}, {Sql.Table<HoSoDat>()}.{nameof(HoSoDat.id):C}";
+                if (dataTb.search_content != null)
+                {
+                    condition += $"and ({Sql.Table<HoSoDat>()}.{nameof(HoSoDat.search_content)} @@ '{dataTb.search_content.ToFullTextString()}')";
+                }
+                if (dataTb.donvi_quanly_id != null && dataTb.donvi_quanly_id.Length > 0)
+                {
+                    condition += $" and ({Sql.Table<HoSoDat>()}.{nameof(HoSoDat.donvi_quanly_id)} in ({string.Join(",", dataTb.donvi_quanly_id)}) )";
+                }
+                if (dataTb.loai_donvi_quanly_id != null && dataTb.loai_donvi_quanly_id.Length > 0)
+                {
+                    condition += $" and ({Sql.Table<LoaiDonViQuanLy>()}.{nameof(LoaiDonViQuanLy.id)} in ({string.Join(",", dataTb.loai_donvi_quanly_id)}) )";
+                }
+                if (dataTb.is_tongquan_table)
+                {
+                    var listIdsOrder = GetSoLuongHoSoDatTheoTinh().Select(x => x.province_id);
+                    if (listIdsOrder.Count() > 0)
+                    {
+                        orderByCondition = $"POSITION({Sql.Table<HoSoDat>()}.{nameof(HoSoDat.province_id)} IN '{string.Join(",", listIdsOrder)}')";
+                    }
+                    else
+                    {
+                        orderByCondition = $"{Sql.Table<HoSoDat>()}.{nameof(HoSoDat.province_id)}";
+                    }
+                }
+                searchTotal = session.Count<HoSoDat>(stm => stm
+                                                          .Include<DonViSuDung>()
+                                                          .Include<DonViQuanLy>()
+                                                          .Include<LoaiDonViQuanLy>()
+                                                          .Where($"{condition}"));
+                List<HoSoDat> data = session.Find<HoSoDat>(stm => stm
+                                                         .Include<DonViSuDung>()
+                                                         .Include<DonViQuanLy>()
+                                                         .Include<LoaiDonViQuanLy>()
+                                                         .Include<LoaiDonViSuDung>()
+                                                         .Where($"{condition}")
+                                                         .OrderBy($"{orderByCondition}")).ToList();
+                for (int i = 0; i < data.Count(); i++)
+                {
+                    //data[i].files = session.Find<Models.FileInfo>(stm => stm
+                    //                                .Include<HoSoDatFile>(o => o.LeftOuterJoin())
+                    //                                .Where($"{Sql.TableAndColumn<HoSoDatFile>(nameof(HoSoDatFile.hoso_dat_id))} = '{data[i].id}'"));
+
+                    if (data[i].donvi_quanly != null)
+                    {
+                        var loai_donvi_quanly_id = data[i].donvi_quanly.loai_donvi_quanly_id;
+                        data[i].loai_donvi_quanly = session.Get(new LoaiDonViQuanLy { id = loai_donvi_quanly_id });
+                    }
+                    else
+                    {
+                        data[i].donvi_quanly_id = 0;
+                        data[i].donvi_quanly = session.Get(new DonViQuanLy { id = 0 });
+                        data[i].loai_donvi_quanly = session.Get(new LoaiDonViQuanLy { id = 0 });
+                    }
+                    if (data[i].donvi_sudung == null)
+                    {
+                        data[i].donvi_sudung_id = 0;
+                        data[i].donvi_sudung = session.Get(new DonViSuDung { id = 0 });
+                    }
+                    if (data[i].province_id != null)
+                    {
+                        data[i].provine_name = session.Get(new Province { proid_2004 = data[i].province_id }).pro_name;
+                    }
+                    data[i].commune = session.Get(new Commune { comid_2004 = data[i].commune_id });
+                    try
+                    {
+                        using (var uow = new UnitOfWork(DbFactory, session))
+                        {
+                            _hoSoDatRepository.SaveOrUpdate((HoSoDat)data[i], uow);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        return Json(new RestError());
+                    }
+                }
+                return Json(new RestPagedDataTable
+                {
+                    data = data,
+                    recordsFiltered = searchTotal,
+                    recordsTotal = total
+                });
+            }
+        }
+
+        [HttpPost]
+        [Route("them")]
+        public IActionResult Them([FromForm] HoSoDat newHoSoDat)
+        {
+            using (var session = OpenSession())
+            {
+                using (var uow = new UnitOfWork(DbFactory, session))
+                {
+                    try
+                    {
+                        int key = _hoSoDatRepository.SaveOrUpdate(newHoSoDat, uow);
+                        if (key > 0)
+                        {
+                            HoSoNha hoSoNha = new HoSoNha
+                            {
+                                hoso_dat_id = key,
+                                donvi_quanly_id = newHoSoDat.donvi_quanly_id,
+                                diachi_khudat = newHoSoDat.dia_chi,
+                            };
+                            int keyHosoNha = _hoSoNhaRepository.SaveOrUpdate(hoSoNha, uow);
+                            if (keyHosoNha > 0)
+                            {
+                                if (newHoSoDat.files != null && newHoSoDat.files.Count() > 0)
+                                {
+                                    foreach (var file in newHoSoDat.files)
+                                    {
+                                        var fId = _fileRepository.SaveOrUpdate(file, uow);
+                                        if (fId > 0)
+                                        {
+                                            var hoSoDatFile = new HoSoDatFile
+                                            {
+                                                hoso_dat_id = key,
+                                                file_id = fId
+                                            };
+                                            uow.Connection.Insert(hoSoDatFile);
+
+                                        }
+                                    }
+                                }
+                            }
+                            return Json(new RestBase(EnumErrorCode.OK));
+                        }
+                        else
+                        {
+                            return Json(new RestError(-1, "Lỗi thêm mới"));
+                        }
+
+                    }
+                    catch (System.Exception ex)
+                    {
+                        uow.Rollback();
+                        return Json(new RestError(ex));
+                    }
+                }
+            }
+        }
+        [HttpPost]
+        [Route("chinhSua")]
+        public IActionResult ChinhSua([FromForm] HoSoDat newHoSoDat)
+        {
+            using (var session = OpenSession())
+            {
+                using (var uow = new UnitOfWork(DbFactory, session))
+                {
+                    try
+                    {
+                        int key = _hoSoDatRepository.SaveOrUpdate(newHoSoDat, uow);
+                        if (key > 0)
+                        {
+                            if (newHoSoDat.files != null && newHoSoDat.files.Count() > 0)
+                            {
+                                foreach (var file in newHoSoDat.files)
+                                {
+                                    var fId = _fileRepository.SaveOrUpdate(file, uow);
+                                    if (fId > 0)
+                                    {
+                                        if (fId > 0)
+                                        {
+                                            var hoSoDatFile = new HoSoDatFile
+                                            {
+                                                hoso_dat_id = key,
+                                                file_id = fId
+                                            };
+                                            if (session.Query<int>($"SELECT COUNT(1) FROM {Sql.Table<HoSoDatFile>()} WHERE {nameof(HoSoDatFile.file_id)}=@file_id AND {nameof(HoSoDatFile.hoso_dat_id)}=@hoso_dat_id", hoSoDatFile).FirstOrDefault() == 0)
+                                            {
+                                                uow.Connection.Insert(hoSoDatFile);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            return Json(new RestBase(EnumErrorCode.OK));
+                        }
+                        else
+                        {
+                            return Json(new RestError(-1, "Lỗi lưu dữ liệu"));
+                        }
+
+                    }
+                    catch (System.Exception ex)
+                    {
+                        return Json(new RestError(ex));
+                    }
+                }
+            }
+        }
+        // [Authorize(Policy = EnumsAuthorization.IsAllowedToManageLandRecord)]
+        [HttpGet]
+        [Route("xoa")]
+        public RestBase Xoa([FromQuery] int id)
+        {
+            using (var session = OpenSession())
+            {
+                var existItem = _hoSoDatRepository.GetKey(id, session);
+                if (existItem == null)
+                {
+                    return new RestError
+                    {
+                        errors = new RestErrorDetail[]
+                            {
+                                new RestErrorDetail
+                                {
+                                    message = "Hồ sơ đất không tồn tại!"
+                                }
+                            }
+                    };
+                }
+                else
+                {
+                    List<HoSoDatFile> listHoSoDatFile = session.Find<HoSoDatFile>(stm => stm
+                                                          .Where($"{nameof(HoSoDatFile.hoso_dat_id)}='{id}'")
+                                                          .OrderBy($"{nameof(HoSoDatFile.hoso_dat_id)} asc")).ToList();
+                    foreach (HoSoDatFile hoSoDatFile in listHoSoDatFile)
+                    {
+                        int fileHoSoDatId = hoSoDatFile.file_id;
+                        if (_hoSoDatFileRepository.Delete(hoSoDatFile, session))
+                        {
+
+                            _fileRepository.DeleteKey(fileHoSoDatId, session);
+                        }
+                    }
+                    List<HoSoNha> listHoSoNha = session.Find<HoSoNha>(stm => stm
+                                                           .Where($"{nameof(HoSoNha.hoso_dat_id)}= '{id}'")).ToList();
+                    foreach (HoSoNha hoSoNha in listHoSoNha)
+                    {
+                        List<HoSoNhaFile> listHoSoNhaFile = session.Find<HoSoNhaFile>(stm => stm
+                                                                   .Where($"{nameof(HoSoNhaFile.hoso_nha_id)}= '{hoSoNha.id}'")).ToList();
+                        foreach (HoSoNhaFile hoSoNhaFile in listHoSoNhaFile)
+                        {
+                            int fileHoSoNhaId = hoSoNhaFile.file_id;
+                            if (_hoSoNhaFileRepository.Delete(hoSoNhaFile, session))
+                            {
+                                _fileRepository.DeleteKey(fileHoSoNhaId, session);
+                            }
+                        }
+                        if (!_hoSoNhaRepository.Delete(hoSoNha, session))
+                        {
+                            return new RestError();
+                        }
+                    }
+                    if (_hoSoDatRepository.DeleteKey(id, session))
+                    {
+                        return new RestBase(EnumErrorCode.OK);
+                    }
+                    else
+                    {
+                        return new RestError();
+                    }
+                }
+
+
+            }
+        }
+        [HttpGet]
+        [Route("list")]
+        public JsonResult List([FromQuery] string q = "")
+        {
+            using (var session = OpenSession())
+            {
+                string where = string.IsNullOrWhiteSpace(q) ? "1=1" : $"{nameof(HoSoDat.search_content)} @@ '{q.ToFullTextString()}'";
+                List<HoSoDat> data = session.Find<HoSoDat>(stm => stm
+                                                           .Where($"{where}")
+                                                           .OrderBy($"{nameof(HoSoDat.id)} asc")).ToList();
+                return Json(new RestData
+                {
+                    data = data
+                });
+            }
+        }
+        [HttpGet]
+        [Route("getItem")]
+        public IActionResult GetItem([FromQuery] int id)
+        {
+            using (var session = OpenSession())
+            {
+                string condition = (id == 0) ? "1=1" : $"{Sql.TableAndColumn<HoSoDatFile>(nameof(HoSoDatFile.hoso_dat_id))} = {id}";
+
+                HoSoDat data = session.Find<HoSoDat>(stm => stm
+                                                          .Where($"{Sql.TableAndColumn<HoSoDat>(nameof(HoSoDat.id))}={id}")
+                                                          .Include<DonViSuDung>()
+                                                          .Include<DonViQuanLy>()
+                                                          .Include<LoaiDonViQuanLy>()
+                                                          .OrderBy($"{nameof(HoSoDat.ten_thuadat)} ASC")).FirstOrDefault();
+                if (data != null)
+                {
+                    data.hoso_nha = session.Find<HoSoNha>(statement => statement.Where($"{nameof(HoSoNha.hoso_dat_id)} = {data.id}")).FirstOrDefault();
+                }
+                List<HoSoDatFile> listHoSoDatFile = session.Find<HoSoDatFile>(stm => stm.Where($"{condition}").OrderBy($"{nameof(HoSoDatFile.hoso_dat_id):C} ASC")).ToList();
+                if (listHoSoDatFile.Count > 0)
+                {
+                    List<Models.FileInfo> listFile = new List<Models.FileInfo>();
+                    foreach (HoSoDatFile hoSoDatFile in listHoSoDatFile)
+                    {
+                        int fileId = hoSoDatFile.file_id;
+                        string conditionFile = (fileId == 0!) ? "1=1" : $"id = '{fileId}'";
+                        Models.FileInfo file = session.Find<Models.FileInfo>(stm => stm.Where($"{conditionFile}")
+                                                           .OrderBy($"{nameof(Models.FileInfo.id):C} ASC")).FirstOrDefault();
+                        listFile.Add(file);
+                    }
+                    data.files = listFile;
+                }
+                return Json(new RestData
+                {
+                    data = data,
+                });
+            }
+        }
+
+        public class HoSoDatGroup
+        {
+            public int loaiDonViQuanLyId { get; set; }
+            public LoaiDonViQuanLy loaiDonViQuanLy { get; set; }
+            public List<HoSoDatGroupByDonViQuanLy> hoSoDatGroupByDonViQuanLy { get; set; }
+            public string province_id { get; set; }
+            public Province province { get; set; }
+            public double tong_dientich_dat { get; set; }
+            public double dientich_dat_anninh { get; set; }
+            public double dientich_datkhac { get; set; }
+            public double dientich_gcn_sdd { get; set; }
+            public double dientich_qdgd { get; set; }
+            public double dientich_dat_khong { get; set; }// diên tích đất không có giấy và quyết định
+            public double dientich_quyhoach_mucdich_anninh { get; set; }
+            public int count { get; set; }
+            public int countGCN { get; set; }
+            public int countQD { get; set; }
+            public int countKhongCo { get; set; }// số hsd không có giấy và quyết định
+            public IEnumerable<HoSoDat> list_hoso_dat { get; set; }
+        }
+        public class HoSoDatGroupByDonViQuanLy
+        {
+            public int donViQuanLyId { get; set; }
+            public DonViQuanLy donViQuanLy { get; set; }
+            public List<HoSoDatGroupByLoaiDonViSuDung> hoSoDatGroupByLoaiDonViSuDung { get; set; }
+            public double tong_dientich_dat { get; set; }
+            public double dientich_dat_anninh { get; set; }
+            public double dientich_datkhac { get; set; }
+            public double dientich_gcn_sdd { get; set; }
+            public double dientich_quyhoach_mucdich_anninh { get; set; }
+            public double dientich_qdgd { get; set; }
+            public double dientich_dat_khong { get; set; }// diên tích đất không có giấy và quyết định
+            public int count { get; set; }
+            public int countGCN { get; set; }
+            public int countQD { get; set; }
+            public int countKhongCo { get; set; }// số hsd không có giấy và quyết định
+            public IEnumerable<HoSoDat> list_hoso_dat { get; set; }
+        }
+        public class HoSoDatGroupByLoaiDonViSuDung
+        {
+            public int loaiDonViSuDungId { get; set; }
+            public LoaiDonViSuDung loaiDonViSuDung { get; set; }
+            public List<HoSoDatGroupByDisIdDonViSuDung> hoSoDatGroupByDisIdDonViSuDung { get; set; }
+        }
+        public class HoSoDatGroupByDisIdDonViSuDung
+        {
+            public string disid_2004 { get; set; }
+            public District district { get; set; }
+            public List<HoSoDat> hoSo { get; set; }
+        }
+        [HttpPost]
+        [Route("getData")]
+        public IActionResult GetData(DatatableNhaDatSearchParams dataTb)
+        {
+            using (var session = OpenSession())
+            {
+                var condition = "true ";
+                if (dataTb.search_content != null)
+                {
+                    condition += $"and ({Sql.Table<HoSoDat>()}.{nameof(HoSoDat.search_content)} @@ '{dataTb.search_content.ToFullTextString()}' " +
+                        $"or {Sql.Table<LoaiDonViQuanLy>()}.{nameof(LoaiDonViQuanLy.search_content)} @@ '{dataTb.search_content.ToFullTextString()}' " +
+                        $"or {Sql.Table<DonViQuanLy>()}.{nameof(DonViQuanLy.search_content)} @@ '{dataTb.search_content.ToFullTextString()}' " +
+                        $"or {Sql.Table<DonViSuDung>()}.{nameof(DonViSuDung.search_content)} @@ '{dataTb.search_content.ToFullTextString()}' )";
+                }
+                if (dataTb.donvi_quanly_id != null && dataTb.donvi_quanly_id.Length > 0)
+                {
+                    condition += $" and ({Sql.Table<HoSoDat>()}.{nameof(HoSoDat.donvi_quanly_id)} in ({string.Join(",", dataTb.donvi_quanly_id)}) )";
+                }
+                if (dataTb.loai_donvi_quanly_id != null && dataTb.loai_donvi_quanly_id.Length > 0)
+                {
+                    condition += $" and ({Sql.Table<LoaiDonViQuanLy>()}.{nameof(LoaiDonViQuanLy.id)} in ({string.Join(",", dataTb.loai_donvi_quanly_id)}) )";
+                }
+                List<HoSoDatGroup> listHoSoDat = new List<HoSoDatGroup>();
+                int total = session.Count<HoSoDat>();
+
+                switch (dataTb.type_data)
+                {
+                    case 1: //Dashboard
+                        listHoSoDat = session.Find<HoSoDat>(stm => stm
+                                                                      .Include<DonViQuanLy>(c => c.LeftOuterJoin())
+                                                                      .Include<LoaiDonViQuanLy>(c => c.LeftOuterJoin())
+                                                                      .Include<DonViSuDung>(c => c.LeftOuterJoin())
+                                                                      .Include<LoaiDonViSuDung>(c => c.LeftOuterJoin())
+                                                                      .Where($"{condition}")).ToList()
+                                                                      .GroupBy(x => x.province_id)
+                                                                      .Select(a => new HoSoDatGroup
+                                                                      {
+                                                                          province_id = a.Key,
+                                                                          count = a.Count(),
+                                                                          province = session.Get(new Province { proid_2004 = a.Key }),
+                                                                          tong_dientich_dat = a.Select(x => x.tong_dientich_dat).Sum(),
+                                                                          dientich_dat_anninh = a.Select(x => x.dientich_dat_anninh).Sum(),
+                                                                          dientich_datkhac = a.Select(x => x.dientich_datkhac).Sum(),
+                                                                          dientich_gcn_sdd = a.Where(x => x.giay_cn_sdd != null).Select(x => x.dientich_gcn_sdd).Sum(),
+                                                                          dientich_qdgd = a.Where(x => x.so_quyetdinh_giaodat != null).Select(x => x.dientich_gcn_sdd).Sum(),
+                                                                          dientich_dat_khong = a.Where(x => (string.IsNullOrEmpty(x.so_quyetdinh_giaodat) && string.IsNullOrEmpty(x.giay_cn_sdd))).Select(x => x.dientich_gcn_sdd).Sum(),
+                                                                          dientich_quyhoach_mucdich_anninh = a.Select(x => x.dientich_quyhoach_mucdich_anninh).Sum(),
+                                                                          countGCN = a.Count(x => x.giay_cn_sdd != null),
+                                                                          countQD = a.Count(x => x.so_quyetdinh_giaodat != null),
+                                                                          countKhongCo = a.Count(x => (string.IsNullOrEmpty(x.so_quyetdinh_giaodat) && string.IsNullOrEmpty(x.giay_cn_sdd))),
+                                                                          list_hoso_dat = a.Where(x => x.province_id == a.Key).ToList()
+                                                                      }).ToList()
+                                                                      .OrderBy(s => s.province_id).ToList();
+                        break;
+                    case 2: //HoSoDat
+                        listHoSoDat = session.Find<HoSoDat>(stm => stm
+                                                                      .Include<TinhTrangThucHienDat>(c => c.LeftOuterJoin())
+                                                                      .Include<DonViQuanLy>(c => c.LeftOuterJoin())
+                                                                      .Include<LoaiDonViQuanLy>(c => c.LeftOuterJoin())
+                                                                      .Include<DonViSuDung>(c => c.LeftOuterJoin())
+                                                                      .Include<LoaiDonViSuDung>(c => c.LeftOuterJoin())
+                                                                      .Where($"{condition}")).ToList()
+                                                                      .GroupBy(x => x.donvi_quanly.loai_donvi_quanly_id)
+                                                                      .Select(a => new HoSoDatGroup
+                                                                      {
+                                                                          loaiDonViQuanLyId = a.Key,
+                                                                          count = a.Count(),
+                                                                          loaiDonViQuanLy = session.Get(new LoaiDonViQuanLy { id = a.Key }),
+                                                                          tong_dientich_dat = a.Select(x => x.tong_dientich_dat).Sum(),
+                                                                          dientich_dat_anninh = a.Select(x => x.dientich_dat_anninh).Sum(),
+                                                                          dientich_datkhac = a.Select(x => x.dientich_datkhac).Sum(),
+                                                                          dientich_gcn_sdd = a.Where(x => x.giay_cn_sdd != null).Select(x => x.dientich_gcn_sdd).Sum(),
+                                                                          dientich_qdgd = a.Where(x => x.so_quyetdinh_giaodat != null).Select(x => x.dientich_gcn_sdd).Sum(),
+                                                                          dientich_dat_khong = a.Where(x => (string.IsNullOrEmpty(x.so_quyetdinh_giaodat) && string.IsNullOrEmpty(x.giay_cn_sdd))).Select(x => x.dientich_gcn_sdd).Sum(),
+                                                                          dientich_quyhoach_mucdich_anninh = a.Select(x => x.dientich_quyhoach_mucdich_anninh).Sum(),
+                                                                          countGCN = a.Count(x => x.giay_cn_sdd != null),
+                                                                          countQD = a.Count(x => x.so_quyetdinh_giaodat != null),
+                                                                          countKhongCo = a.Count(x => (string.IsNullOrEmpty(x.so_quyetdinh_giaodat) && string.IsNullOrEmpty(x.giay_cn_sdd))),
+                                                                          hoSoDatGroupByDonViQuanLy = a.GroupBy(x => x.donvi_quanly_id).Select(b => new HoSoDatGroupByDonViQuanLy
+                                                                          {
+                                                                              donViQuanLyId = b.Key,
+                                                                              count = b.Count(),
+                                                                              countGCN = b.Count(x => x.giay_cn_sdd != null),
+                                                                              countQD = b.Count(x => x.so_quyetdinh_giaodat != null),
+                                                                              countKhongCo = b.Count(x => (string.IsNullOrEmpty(x.so_quyetdinh_giaodat) && string.IsNullOrEmpty(x.giay_cn_sdd))),
+                                                                              donViQuanLy = session.Get(new DonViQuanLy { id = b.Key }),
+                                                                              tong_dientich_dat = b.Select(x => x.tong_dientich_dat).Sum(),
+                                                                              dientich_dat_anninh = b.Select(x => x.dientich_dat_anninh).Sum(),
+                                                                              dientich_datkhac = b.Select(x => x.dientich_datkhac).Sum(),
+                                                                              dientich_gcn_sdd = b.Where(x => x.giay_cn_sdd != null).Select(x => x.dientich_gcn_sdd).Sum(),
+                                                                              dientich_qdgd = b.Where(x => x.so_quyetdinh_giaodat != null).Select(x => x.dientich_gcn_sdd).Sum(),
+                                                                              dientich_dat_khong = b.Where(x => (string.IsNullOrEmpty(x.so_quyetdinh_giaodat) && string.IsNullOrEmpty(x.giay_cn_sdd))).Select(x => x.dientich_gcn_sdd).Sum(),
+                                                                              dientich_quyhoach_mucdich_anninh = b.Select(x => x.dientich_quyhoach_mucdich_anninh).Sum(),
+                                                                              list_hoso_dat = a.Where(x => x.donvi_quanly_id == b.Key).OrderBy(x => x.donvi_sudung.loai_donvi_sudung_id).ToList()
+                                                                          }).ToList()
+                                                                      }).ToList()
+                                                                      .OrderBy(s => s.loaiDonViQuanLyId).ToList();
+                        break;
+                    default:
+                        new List<HoSoDatGroup>();
+                        break;
+                }
+                return Json(new RestPagedDataTable
+                {
+                    data = listHoSoDat,
+                    recordsFiltered = listHoSoDat.Count(),
+                    recordsTotal = total
+                });
+                //return Json(new RestData { data = listHoSoDat });
+            }
+        }
+        [HttpPost]
+        [Route("ExportExcel")]
+        public IActionResult ExportExcel([FromForm] DatatableNhaDatSearchParams @params)
+        {
+            string fileName = "DanhSachHoSoDat.xlsx";
+            try
+            {
+                using (var session = OpenSession())
+                {
+                    var condition = "true ";
+                    if (@params.search_content != null)
+                    {
+                        condition += $"and ({Sql.Table<HoSoDat>()}.{nameof(HoSoDat.search_content)} @@ '{@params.search_content.ToFullTextString()}')";
+                    }
+                    if (@params.donvi_quanly_id != null && @params.donvi_quanly_id.Length > 0)
+                    {
+                        condition += $" and ({Sql.Table<HoSoDat>()}.{nameof(HoSoDat.donvi_quanly_id)} in ({string.Join(",", @params.donvi_quanly_id)}) )";
+                    }
+                    if (@params.loai_donvi_quanly_id != null && @params.loai_donvi_quanly_id.Length > 0)
+                    {
+                        condition += $" and ({Sql.Table<LoaiDonViQuanLy>()}.{nameof(LoaiDonViQuanLy.id)} in ({string.Join(",", @params.loai_donvi_quanly_id)}) )";
+                    }
+                    List<HoSoDatGroup> listHoSoDat = session.Find<HoSoDat>(stm => stm
+                                                                  .Include<TinhTrangThucHienDat>(c => c.LeftOuterJoin())
+                                                                  .Include<DonViQuanLy>(c => c.LeftOuterJoin())
+                                                                  .Include<LoaiDonViQuanLy>(c => c.LeftOuterJoin())
+                                                                  .Include<DonViSuDung>(c => c.LeftOuterJoin())
+                                                                  .Include<LoaiDonViSuDung>(c => c.LeftOuterJoin())
+                                                                  .OrderBy($"{nameof(HoSoDat.ma_thuadat)} asc")
+                                                                  .Where($"{condition}")).ToList()
+                                                                  .GroupBy(x => x.donvi_quanly.loai_donvi_quanly_id)
+                                                                  .Select(a => new HoSoDatGroup
+                                                                  {
+                                                                      loaiDonViQuanLyId = a.Key,
+                                                                      hoSoDatGroupByDonViQuanLy = a.GroupBy(x => x.donvi_quanly_id).Select(b => new HoSoDatGroupByDonViQuanLy
+                                                                      {
+                                                                          donViQuanLyId = b.Key,
+                                                                          hoSoDatGroupByLoaiDonViSuDung = b.GroupBy(y => y.donvi_sudung.loai_donvi_sudung_id).Select(c => new HoSoDatGroupByLoaiDonViSuDung
+                                                                          {
+                                                                              loaiDonViSuDungId = c.Key,
+                                                                              hoSoDatGroupByDisIdDonViSuDung = c.GroupBy(z => z.donvi_sudung.disid_2004).Select(d => new HoSoDatGroupByDisIdDonViSuDung
+                                                                              {
+                                                                                  disid_2004 = d.Key,
+                                                                                  hoSo = d.ToList()
+                                                                              }).ToList()
+                                                                          }).ToList()
+                                                                      }).ToList()
+                                                                  }).ToList()
+                                                                  .OrderBy(s => s.loaiDonViQuanLyId).ToList();
+
+                    var stream = new MemoryStream();
+                    ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                    using (var package = new ExcelPackage(stream))
+                    {
+
+                        var excelWorkSheet = package.Workbook.Worksheets.Add("Sheet1");
+                        int countData = 0;
+                        string maxCol = "";
+                        List<string> numCol = new List<string>();
+                        List<string> listCol = new List<string>();
+                        countData = listHoSoDat.Count() + 1;
+                        excelWorkSheet.DefaultColWidth = 20;
+                        maxCol = "N";
+                        numCol.Add("E");
+                        listCol.Add("A"); listCol.Add("B"); listCol.Add("C"); listCol.Add("D"); listCol.Add("E"); listCol.Add("F"); listCol.Add("G");
+                        listCol.Add("H"); listCol.Add("I"); listCol.Add("J"); listCol.Add("K"); listCol.Add("L"); listCol.Add("M"); listCol.Add("N"); /*listCol.Add("O");*/
+                        //Header ========================
+                        excelWorkSheet.Cells[$"A1:{maxCol}1"].Merge = true;
+                        excelWorkSheet.Cells[$"A1:{maxCol}1"].Value = "BIỂU CƠ SỞ DỮ LIỆU CƠ BẢN VỀ ĐẤT AN NINH";
+                        excelWorkSheet.Cells[$"A1:{maxCol}1"].Style.Font.Name = "Times New Roman";
+                        excelWorkSheet.Cells[$"A1:{maxCol}1"].Style.Font.Size = 20;
+                        excelWorkSheet.Cells[$"A1:{maxCol}1"].Style.Font.Bold = true;
+                        excelWorkSheet.Cells[$"A1:{maxCol}1"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                        excelWorkSheet.Cells[$"A1:{maxCol}1"].Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+                        excelWorkSheet.Row(1).Height = 40;
+                        //Title =========================
+                        excelWorkSheet.Cells["A2:A3"].Merge = true;
+                        excelWorkSheet.Cells["A2"].Value = "STT";
+                        excelWorkSheet.Cells["B2:B3"].Merge = true;
+                        excelWorkSheet.Cells["B2"].Value = "Mã";
+                        excelWorkSheet.Cells["C2:C3"].Merge = true;
+                        excelWorkSheet.Cells["C2:C3"].Value = "Đơn vị được giao quản lí/trực tiếp sử dụng đất";
+                        excelWorkSheet.Cells["D2:D3"].Merge = true;
+                        excelWorkSheet.Cells["D2:D3"].Value = "Địa chỉ điểm đất/Đặc điểm khu đất";
+                        excelWorkSheet.Cells["E2:E3"].Merge = true;
+                        excelWorkSheet.Cells["E2"].Value = "Biên chế CBCS";
+                        excelWorkSheet.Cells["F2:F3"].Merge = true;
+                        excelWorkSheet.Cells["F2"].Value = "Quy mô khác";
+                        excelWorkSheet.Cells["G2:I2"].Merge = true;
+                        excelWorkSheet.Cells["G2:I2"].Value = "Diện tích đất được giao quản lý, sử dụng";
+                        excelWorkSheet.Cells["G3"].Value = "Tổng diện tích đất (ha)";
+                        excelWorkSheet.Cells["H3"].Value = "Diện tích đất an ninh (ha)";
+                        excelWorkSheet.Cells["I3"].Value = "Diện tích đất khác (ha)";
+                        excelWorkSheet.Cells["J2:K2"].Merge = true;
+                        excelWorkSheet.Cells["J2:K2"].Value = "Giấy chứng nhận quyền sử dụng đất hoặc Quyết định giao đất";
+                        excelWorkSheet.Cells["J3"].Value = "Số GCNQSDĐ hoặc QĐGĐ";
+                        excelWorkSheet.Cells["K3"].Value = "Diện tích trên GCNQSDĐ hoặc QĐ giao đất (ha)";
+                        excelWorkSheet.Cells["L2:L3"].Merge = true;
+                        excelWorkSheet.Cells["L2:L3"].Value = "Diện tích đất quy hoạch sử dụng vào mục đích an ninh (ha)";
+                        excelWorkSheet.Cells["M2:M3"].Merge = true;
+                        excelWorkSheet.Cells["M2:M3"].Value = "Phương án sắp xếp lại, xử lý nhà, đất";
+                        excelWorkSheet.Cells["N2:N3"].Merge = true;
+                        excelWorkSheet.Cells["N2:N3"].Value = "Ghi chú";
+                        //excelWorkSheet.Cells["O2:O3"].Merge = true;
+                        //excelWorkSheet.Cells["O2:O3"].Value = "";
+                        excelWorkSheet.Cells[$"A2:{maxCol}2"].Style.Font.Color.SetColor(System.Drawing.Color.Black);
+                        excelWorkSheet.Row(2).Height = 27;
+                        excelWorkSheet.Cells[$"A2:{maxCol}3"].Style.Font.Bold = true;
+                        excelWorkSheet.Cells[$"A2:{maxCol}3"].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                        excelWorkSheet.Cells[$"A2:{maxCol}3"].Style.Fill.BackgroundColor.SetColor(ColorTranslator.FromHtml("#eff0f1"));
+                        excelWorkSheet.Cells[$"A2:M3"].Style.WrapText = true;
+                        excelWorkSheet.Cells[$"A2:{maxCol}4"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                        excelWorkSheet.Cells[$"A2:{maxCol}4"].Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+                        //
+                        excelWorkSheet.Cells["A4:B4"].Merge = true;
+                        excelWorkSheet.Cells["A4:B4"].Value = "(1)";
+                        for (int i = 2; i < listCol.Count(); i++)
+                        {
+                            if (i == 6)
+                            {
+                                excelWorkSheet.Cells[$"{listCol[i]}4"].Value = "(6=7+8)";
+                            }
+                            else
+                            {
+                                excelWorkSheet.Cells[$"{listCol[i]}4"].Value = "(" + i + ")";
+                            }
+
+                        }
+                        ////Format excel======================
+
+                        if (listHoSoDat.Count() > 0)
+                        {
+
+                            int rowIdx = 5;
+                            int STT = 1;
+                            Color colFromHex;
+                            foreach (var hsg in listHoSoDat)
+                            {
+                                int rowLoaiDVQL = rowIdx;
+                                var countForLoaiDVQL = new CountGCNQDViewModels();
+                                double sumDienTichDat = 0;
+                                double sumDienTichDatAnNinh = 0;
+                                double sumDienTichDatKhac = 0;
+                                double sumDienTichDatGCNQD = 0;
+                                double sumDienTichDatQH = 0;
+                                //excelWorkSheet.Cells[$"C{rowIdx}:M{rowIdx}"].Merge = true;
+                                LoaiDonViQuanLy loaiDonViQuanLy = session.Get(new LoaiDonViQuanLy { id = hsg.loaiDonViQuanLyId });
+                                excelWorkSheet.Cells[$"A{rowIdx}"].Value = StringHelpers.ToRoman(STT).ToUpper();
+                                excelWorkSheet.Cells[$"B{rowIdx}"].Value = loaiDonViQuanLy.ma.ToUpper();
+                                excelWorkSheet.Cells[$"C{rowIdx}"].Value = loaiDonViQuanLy.ten.ToUpper();
+                                excelWorkSheet.Cells[$"A{rowIdx}:{maxCol}{rowIdx}"].Style.Font.Bold = true;
+                                colFromHex = System.Drawing.ColorTranslator.FromHtml("#C4D79B");
+                                excelWorkSheet.Cells[$"A{rowIdx}:{maxCol}{rowIdx}"].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                                excelWorkSheet.Cells[$"A{rowIdx}:{maxCol}{rowIdx}"].Style.Fill.BackgroundColor.SetColor(colFromHex);
+                                STT++;
+                                rowIdx++;
+                                int countDonVi = 1;
+                                foreach (var itemDonVi in hsg.hoSoDatGroupByDonViQuanLy)
+                                {
+                                    int rowDVQL = rowIdx;
+                                    var countForDVQL = new CountGCNQDViewModels();
+                                    DonViQuanLy donViQuanLy = session.Get(new DonViQuanLy { id = itemDonVi.donViQuanLyId });
+                                    excelWorkSheet.Cells[$"A{rowIdx}"].Value = countDonVi;
+                                    excelWorkSheet.Cells[$"B{rowIdx}"].Value = donViQuanLy.ma.ToUpper();
+                                    excelWorkSheet.Cells[$"C{rowIdx}"].Value = donViQuanLy.ten;
+                                    excelWorkSheet.Cells[$"A{rowIdx}:{maxCol}{rowIdx}"].Style.Font.Bold = true;
+                                    colFromHex = System.Drawing.ColorTranslator.FromHtml("#a7cff7");
+                                    excelWorkSheet.Cells[$"A{rowIdx}:{maxCol}{rowIdx}"].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                                    excelWorkSheet.Cells[$"A{rowIdx}:{maxCol}{rowIdx}"].Style.Fill.BackgroundColor.SetColor(colFromHex);
+                                    countDonVi++;
+                                    rowIdx++;
+                                    double sumDienTichDatDVQL = 0;
+                                    double sumDienTichDatAnNinhDVQL = 0;
+                                    double sumDienTichDatKhacDVQL = 0;
+                                    double sumDienTichDatGCNQDDVQL = 0;
+                                    double sumDienTichDatQHDVQL = 0;
+                                    foreach (var itemLoaiDVSD in itemDonVi.hoSoDatGroupByLoaiDonViSuDung.OrderBy(x => x.loaiDonViSuDungId))
+                                    {
+                                        int rowLoaiDVSD = rowIdx;
+                                        double sumDienTichDatDVSD = 0;
+                                        double sumDienTichDatAnNinhDVSD = 0;
+                                        double sumDienTichDatKhacDVSD = 0;
+                                        double sumDienTichDatGCNQDDVSD = 0;
+                                        double sumDienTichDatQHDVSD = 0;
+                                        //var countForLoaiDVSD = new CountGCNQDViewModels();
+                                        if (itemLoaiDVSD.loaiDonViSuDungId != 0)
+                                        {
+                                            LoaiDonViSuDung loaiDonViSuDung = session.Get(new LoaiDonViSuDung { id = itemLoaiDVSD.loaiDonViSuDungId });
+                                            excelWorkSheet.Cells[$"B{rowIdx}"].Value = donViQuanLy.ma.ToUpper() + "-" + loaiDonViSuDung.ma;
+                                            excelWorkSheet.Cells[$"C{rowIdx}"].Value = loaiDonViSuDung.ten;
+                                            excelWorkSheet.Cells[$"B{rowIdx}:{maxCol}{rowIdx}"].Style.Font.Bold = true;
+                                            colFromHex = System.Drawing.ColorTranslator.FromHtml("#F79C59");
+                                            excelWorkSheet.Cells[$"A{rowIdx}:{maxCol}{rowIdx}"].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                                            excelWorkSheet.Cells[$"A{rowIdx}:{maxCol}{rowIdx}"].Style.Fill.BackgroundColor.SetColor(colFromHex);
+                                            rowIdx++;
+                                        }
+                                        foreach (var itemComIdDVSD in itemLoaiDVSD.hoSoDatGroupByDisIdDonViSuDung)
+                                        {
+                                            if (itemComIdDVSD.disid_2004 != null)
+                                            {
+                                                District district = session.Get(new District { disid_2004 = itemComIdDVSD.disid_2004 });
+                                                excelWorkSheet.Cells[$"C{rowIdx}"].Value = "Công an " + district.dis_name;
+                                                //excelWorkSheet.Cells[$"C{rowIdx}"].Value = loaiDonViSuDung.ten;
+                                                excelWorkSheet.Cells[$"B{rowIdx}:{maxCol}{rowIdx}"].Style.Font.Bold = true;
+                                                colFromHex = System.Drawing.ColorTranslator.FromHtml("#ddb3f8");
+                                                excelWorkSheet.Cells[$"A{rowIdx}:{maxCol}{rowIdx}"].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                                                excelWorkSheet.Cells[$"A{rowIdx}:{maxCol}{rowIdx}"].Style.Fill.BackgroundColor.SetColor(colFromHex);
+                                                rowIdx++;
+                                            }
+                                            foreach (var hs in itemComIdDVSD.hoSo)
+                                            {
+                                                var item = hs;
+                                                //excelWorkSheet.Cells[$"A{rowIdx}"].Value = countHoSo;
+                                                excelWorkSheet.Cells[$"B{rowIdx}"].Value = item.id;
+                                                excelWorkSheet.Cells[$"C{rowIdx}"].Value = session.Get(new DonViSuDung { id = item.donvi_sudung_id }).ten;
+                                                excelWorkSheet.Cells[$"D{rowIdx}"].Value = item.dia_chi;
+                                                excelWorkSheet.Cells[$"E{rowIdx}"].Value = item.can_bo;
+                                                excelWorkSheet.Cells[$"F{rowIdx}"].Value = item.quymo_khac;
+                                                sumDienTichDatDVSD += item.tong_dientich_dat;
+                                                sumDienTichDatDVQL += item.tong_dientich_dat;
+                                                excelWorkSheet.Cells[$"G{rowIdx}"].Value = StringHelpers.FormatStringDecimal(item.tong_dientich_dat);
+                                                sumDienTichDatAnNinhDVQL += item.dientich_dat_anninh;
+                                                sumDienTichDatAnNinhDVSD += item.dientich_dat_anninh;
+                                                excelWorkSheet.Cells[$"H{rowIdx}"].Value = StringHelpers.FormatStringDecimal(item.dientich_dat_anninh);
+                                                sumDienTichDatKhacDVQL = sumDienTichDatKhacDVSD += item.dientich_datkhac;
+                                                excelWorkSheet.Cells[$"I{rowIdx}"].Value = StringHelpers.FormatStringDecimal(item.dientich_datkhac);
+                                                string giayChungNhanVaQuyetDinh = "";
+                                                if (item.giay_cn_sdd != null)
+                                                {
+                                                    giayChungNhanVaQuyetDinh += item.giay_cn_sdd;
+                                                    countForDVQL.countGCN += item.giay_cn_sdd.Split(";").Length;
+                                                    countForDVQL.dientich_dat_GCN += item.dientich_gcn_sdd;
+                                                }
+                                                else if (item.so_quyetdinh_giaodat != null)
+                                                {
+                                                    giayChungNhanVaQuyetDinh += item.so_quyetdinh_giaodat;
+                                                    countForDVQL.countQD += item.so_quyetdinh_giaodat.Split(";").Length;
+                                                    countForDVQL.dientich_dat_QD += item.dientich_gcn_sdd;
+                                                }
+                                                else
+                                                {
+                                                    countForDVQL.countKhongGCNQD += 1;
+                                                    countForDVQL.dientich_dat_KhongGCNQD += item.dientich_gcn_sdd;
+                                                }
+                                                excelWorkSheet.Cells[$"J{rowIdx}"].Value = item.giay_cn_sdd;
+                                                sumDienTichDatGCNQDDVQL += item.dientich_gcn_sdd;
+                                                sumDienTichDatGCNQDDVSD += item.dientich_gcn_sdd;
+                                                excelWorkSheet.Cells[$"K{rowIdx}"].Value = StringHelpers.FormatStringDecimal(item.dientich_gcn_sdd);
+                                                sumDienTichDatQHDVQL += item.dientich_quyhoach_mucdich_anninh;
+                                                sumDienTichDatQHDVSD += item.dientich_quyhoach_mucdich_anninh;
+                                                excelWorkSheet.Cells[$"L{rowIdx}"].Value = StringHelpers.FormatStringDecimal(item.dientich_quyhoach_mucdich_anninh);
+                                                excelWorkSheet.Cells[$"M{rowIdx}"].Value = item.phuongan_xuly;
+                                                excelWorkSheet.Cells[$"N{rowIdx}"].Value = item.ghi_chu;
+                                                //excelWorkSheet.Cells[$"O{rowIdx}"].Value = item.ghi_chu;
+                                                //countHoSo++;
+                                                rowIdx++;
+                                            }
+                                        }
+                                        //int countHoSo = 1;
+                                        if (itemLoaiDVSD.loaiDonViSuDungId != 0)
+                                        {
+                                            excelWorkSheet.Cells[$"G{rowLoaiDVSD}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDatDVSD);
+                                            excelWorkSheet.Cells[$"H{rowLoaiDVSD}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDatAnNinhDVSD);
+                                            excelWorkSheet.Cells[$"I{rowLoaiDVSD}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDatKhacDVSD);
+                                            excelWorkSheet.Cells[$"K{rowLoaiDVSD}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDatGCNQDDVSD);
+                                            excelWorkSheet.Cells[$"L{rowLoaiDVSD}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDatQHDVSD);
+                                            sumDienTichDatDVSD = 0;
+                                            sumDienTichDatAnNinhDVSD = 0;
+                                            sumDienTichDatKhacDVSD = 0;
+                                            sumDienTichDatGCNQDDVSD = 0;
+                                            sumDienTichDatQHDVSD = 0;
+                                        }
+                                    }
+                                    sumDienTichDat += sumDienTichDatDVQL;
+                                    excelWorkSheet.Cells[$"G{rowDVQL}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDatDVQL);
+                                    sumDienTichDatAnNinh += sumDienTichDatAnNinhDVQL;
+                                    excelWorkSheet.Cells[$"H{rowDVQL}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDatAnNinhDVQL);
+                                    sumDienTichDatKhac += sumDienTichDatKhacDVQL;
+                                    excelWorkSheet.Cells[$"I{rowDVQL}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDatKhacDVQL);
+                                    countForLoaiDVQL.countGCN += countForDVQL.countGCN;
+                                    countForLoaiDVQL.countQD += countForDVQL.countQD;
+                                    countForLoaiDVQL.countKhongGCNQD += countForDVQL.countKhongGCNQD;
+                                    countForLoaiDVQL.dientich_dat_GCN += countForDVQL.dientich_dat_GCN;
+                                    countForLoaiDVQL.dientich_dat_QD += countForDVQL.dientich_dat_QD;
+                                    countForLoaiDVQL.dientich_dat_KhongGCNQD += countForDVQL.dientich_dat_KhongGCNQD;
+
+                                    excelWorkSheet.Cells[$"J{rowDVQL}"].Value = $"GCN: {countForDVQL.countGCN}/QD: {countForDVQL.countQD}/k: {countForDVQL.countKhongGCNQD}";
+                                    sumDienTichDatGCNQD += sumDienTichDatGCNQDDVQL;
+                                    //excelWorkSheet.Cells[$"K{rowDVQL}"].Value = FormatStringDecimal(sumDienTichDatGCNQDDVQL);
+                                    excelWorkSheet.Cells[$"K{rowDVQL}"].Value = $"GCN: {StringHelpers.FormatStringDecimal(countForDVQL.dientich_dat_GCN)}/QD: {StringHelpers.FormatStringDecimal(countForDVQL.dientich_dat_QD)}/k: {StringHelpers.FormatStringDecimal(countForDVQL.dientich_dat_KhongGCNQD)}";
+                                    sumDienTichDatQH += sumDienTichDatQHDVQL;
+                                    excelWorkSheet.Cells[$"L{rowDVQL}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDatQHDVQL);
+                                }
+                                excelWorkSheet.Cells[$"G{rowLoaiDVQL}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDat);
+                                excelWorkSheet.Cells[$"H{rowLoaiDVQL}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDatAnNinh);
+                                excelWorkSheet.Cells[$"I{rowLoaiDVQL}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDatKhac);
+                                excelWorkSheet.Cells[$"J{rowLoaiDVQL}"].Value = $"GCN: {countForLoaiDVQL.countGCN}/QD: {countForLoaiDVQL.countQD}/k: {countForLoaiDVQL.countKhongGCNQD}";
+                                excelWorkSheet.Cells[$"K{rowLoaiDVQL}"].Value = $"GCN: {StringHelpers.FormatStringDecimal(countForLoaiDVQL.dientich_dat_GCN)}/QD: {StringHelpers.FormatStringDecimal(countForLoaiDVQL.dientich_dat_QD)}/k: {StringHelpers.FormatStringDecimal(countForLoaiDVQL.dientich_dat_KhongGCNQD)}";
+
+                                //excelWorkSheet.Cells[$"K{rowLoaiDVQL}"].Value = FormatStringDecimal(sumDienTichDatGCNQD);
+                                excelWorkSheet.Cells[$"L{rowLoaiDVQL}"].Value = StringHelpers.FormatStringDecimal(sumDienTichDatQH);
+                            }
+                            excelWorkSheet.Cells[$"A2:{maxCol}" + (rowIdx).ToString()].Style.Font.Size = 11;
+                        }
+
+                        //Set style for data table---------------------------------------------
+                        int maxRow = excelWorkSheet.Dimension.End.Row;
+                        excelWorkSheet.Cells[$"A3:F{maxRow}"].Style.VerticalAlignment = ExcelVerticalAlignment.Bottom;
+                        excelWorkSheet.Cells[$"A2:{maxCol}" + (maxRow - 1).ToString()].Style.Border.Top.Style = ExcelBorderStyle.Thin;
+                        excelWorkSheet.Cells[$"A2:{maxCol}" + (maxRow - 1).ToString()].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+                        excelWorkSheet.Cells[$"A2:{maxCol}" + (maxRow - 1).ToString()].Style.Border.Right.Style = ExcelBorderStyle.Thin;
+                        excelWorkSheet.Cells[$"A2:{maxCol}" + (maxRow - 1).ToString()].Style.Border.Left.Style = ExcelBorderStyle.Thin;
+                        //Set col and row --------------------------------------
+                        double rowHeight = 20;
+                        //for (int row = 5; row <= maxRow; row++)
+                        //{
+                        //    excelWorkSheet.Row(row).Height = rowHeight;
+                        //}
+                        excelWorkSheet.Cells.AutoFitColumns();
+                        excelWorkSheet.Column(1).Width = 5;
+                        excelWorkSheet.Column(2).Width = 10;
+                        //excelWorkSheet.Column(3).Width = 30;
+                        //excelWorkSheet.Column(4).Width = 30;
+                        excelWorkSheet.Column(5).Width = 15;
+                        excelWorkSheet.Column(6).Width = 15;
+
+                        excelWorkSheet.Cells[$"A2:{maxCol}{maxRow}"].Style.Font.Name = "Times New Roman";
+                        excelWorkSheet.Cells[$"B2:{maxCol}{maxRow}"].Style.WrapText = true;
+                        excelWorkSheet.View.FreezePanes(5, 1);
+                        package.Save();
+                    }
+                    stream.Position = 0;
+                    return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+                }
+
+            }
+            catch (Exception e)
+            {
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                var p = new ExcelPackage();
+                return File(p.GetAsByteArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+        }
+
+        [HttpPost]
+        [Route("ImportExcel")]
+        public IActionResult ImportExcel(string fileName)
+        {
+            try
+            {
+                var rootFolder = _webHostEnvironment.ContentRootPath;
+                var uploadFolder = Path.Combine(rootFolder, "Data_Stores", "documents");
+                var filePath = Path.Combine(uploadFolder, fileName);
+                List<RestErrorDetail> ListError = new List<RestErrorDetail>();
+                int countRecord = 0;
+                if (System.IO.File.Exists(filePath))
+                {
+                    using (FileStream fs = System.IO.File.Open(filePath, FileMode.Open, FileAccess.Read))
+                    {
+                        //if (Path.GetExtension(filePath) == ".xlsx")
+                        //{
+                        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                        using (var excelPackage = new ExcelPackage(fs))
+                        {
+                            using (var session = OpenSession())
+                            {
+                                using (var uow = new UnitOfWork(DbFactory, session))
+                                {
+                                    var workSheet = excelPackage.Workbook.Worksheets[0];
+                                    for (int i = workSheet.Dimension.Start.Row; i < workSheet.Dimension.End.Row; i++)
+                                    {
+                                        if (workSheet.Cells[$"A{i}"].Value != null)
+                                        {
+                                            if (workSheet.Cells[$"A{i}"].Value.ToString() == "Người lập biểu")
+                                            {
+                                                countRecord = i - 1;
+                                            }
+                                        }
+                                    }
+                                    string conditionDonViQuanLy = "";
+                                    string detailCondition = "";
+                                    string disid_2004 = null;
+                                    int donvi_quanly_id = 0;
+                                    int loai_donvi_sudung_id = 0;
+                                    string maDVSD = "";
+                                    for (int i = 11; i <= workSheet.Dimension.End.Row - 9; i++)
+                                    {
+                                        try
+                                        {
+                                            HoSoDat hoSoDat = new HoSoDat();
+                                            //mã đơn vị quản lý
+                                            if (workSheet.Cells[$"B{i}"].Value != null)
+                                            {
+                                                //kiểm tra mã đơn vị quản lý
+                                                var checkCell = workSheet.Cells[$"B{i}"].Value.ToString().Split("-");
+                                                if (checkCell.Length == 1) // loại đơn vị quản lý khác Công An tỉnh
+                                                {
+                                                    var donViQuanLy = session.Find<DonViQuanLy>(stm => stm.Where($"{nameof(DonViQuanLy.ma)} = '{workSheet.Cells[$"B{i}"].Value.ToString()}'")).FirstOrDefault();
+                                                    if (donViQuanLy != null)
+                                                    {
+                                                        donvi_quanly_id = donViQuanLy.id;
+                                                        maDVSD = workSheet.Cells[$"B{i}"].Value.ToString();
+                                                        conditionDonViQuanLy = $" {Sql.TableAndColumn<DonViSuDung>(nameof(DonViSuDung.donvi_quanly_id))} = {donViQuanLy.id} ";
+                                                        continue;
+                                                    }
+                                                }
+                                                else if (checkCell.Length == 4) // loại đơn vị quản lý là Công An tỉnh và thuộc khối quận huyện
+                                                {
+                                                    //CAT-proid_2004-B-disid_2004
+                                                    //kiểm tra công an thuộc tỉnh
+                                                    var donViQuanLyCAT = session.Find<DonViQuanLy>(stm => stm.Where($"{nameof(DonViQuanLy.proid_2004)} = '{checkCell[1]}' and {nameof(DonViQuanLy.loai_donvi_quanly_id)} = {EnumDonViQuanLy.CongAnTinh} ")).FirstOrDefault();
+                                                    if (donViQuanLyCAT != null)
+                                                    {
+                                                        maDVSD = workSheet.Cells[$"B{i}"].Value.ToString();
+                                                        donvi_quanly_id = donViQuanLyCAT.id;
+                                                        disid_2004 = checkCell[3];
+                                                        loai_donvi_sudung_id = EnumKhoiDVSDCongAnTinh.CongAnQuanHuyenTP;
+                                                        conditionDonViQuanLy = $" {Sql.TableAndColumn<DonViSuDung>(nameof(DonViSuDung.loai_donvi_sudung_id))} = {EnumKhoiDVSDCongAnTinh.CongAnQuanHuyenTP} and {Sql.TableAndColumn<DonViSuDung>(nameof(DonViSuDung.donvi_quanly_id))} = {donViQuanLyCAT.id} and {Sql.TableAndColumn<DonViSuDung>(nameof(DonViSuDung.disid_2004))} = '{disid_2004}' ";
+                                                    }
+                                                    else
+                                                    {
+                                                        conditionDonViQuanLy = "";
+                                                        detailCondition = "";
+                                                        disid_2004 = null;
+                                                        donvi_quanly_id = 0;
+                                                        loai_donvi_sudung_id = 0;
+                                                    }
+                                                    continue;
+                                                }
+                                                else if (checkCell.Length == 3) //proid_2004-disid_2004-comid_2004 || CAT-proid_2004-A 
+                                                {
+                                                    if (checkCell[0] == "CAT" && checkCell[2] == session.Get(new LoaiDonViSuDung { id = EnumKhoiDVSDCongAnTinh.BanGiamDoc }).ma)
+                                                    {
+                                                        var donViQuanLyCAT = session.Find<DonViQuanLy>(stm => stm.Where($"{nameof(DonViQuanLy.proid_2004)} = '{checkCell[1]}' and {nameof(DonViQuanLy.loai_donvi_quanly_id)} = {EnumDonViQuanLy.CongAnTinh} ")).FirstOrDefault();
+                                                        if (donViQuanLyCAT != null)
+                                                        {
+                                                            disid_2004 = null;
+                                                            donvi_quanly_id = donViQuanLyCAT.id;
+                                                            loai_donvi_sudung_id = EnumKhoiDVSDCongAnTinh.BanGiamDoc;
+                                                            conditionDonViQuanLy = $" {Sql.TableAndColumn<DonViSuDung>(nameof(DonViSuDung.loai_donvi_sudung_id))} = {EnumKhoiDVSDCongAnTinh.BanGiamDoc} and {Sql.TableAndColumn<DonViSuDung>(nameof(DonViSuDung.donvi_quanly_id))} = {donViQuanLyCAT.id} ";
+                                                            maDVSD = workSheet.Cells[$"B{i}"].Value.ToString();
+                                                        }
+                                                        else
+                                                        {
+                                                            conditionDonViQuanLy = "";
+                                                            detailCondition = "";
+                                                            disid_2004 = null;
+                                                            donvi_quanly_id = 0;
+                                                            loai_donvi_sudung_id = 0;
+                                                        }
+                                                        continue;
+                                                    }
+                                                    else if (!string.IsNullOrEmpty(conditionDonViQuanLy) && checkCell[2] != "B" && workSheet.Cells[$"C{i}"].Value != null && workSheet.Cells[$"D{i}"].Value != null && workSheet.Cells[$"E{i}"].Value != null && workSheet.Cells[$"F{i}"].Value != null)
+                                                    {
+                                                        string donvi_sudung_ten = workSheet.Cells[$"C{i}"].Value.ToString();
+                                                        detailCondition = $"LOWER(remove_vietnamese_signs({nameof(DonViSuDung.ten)})) = '{StringHelper.RemoveVietNameseSign(donvi_sudung_ten).ToLower()}'";
+                                                        DonViSuDung donvi_sudung = session.Find<DonViSuDung>(stm => stm.Where($"{conditionDonViQuanLy} and {detailCondition} ")).FirstOrDefault();
+                                                        if (donvi_sudung != null)
+                                                        {
+                                                            hoSoDat.donvi_sudung_id = donvi_sudung.id;
+                                                        }
+                                                        else
+                                                        {
+                                                            var donViSuDung = new DonViSuDung
+                                                            {
+                                                                ma = maDVSD + "-" + checkCell[2],
+                                                                donvi_quanly_id = donvi_quanly_id,
+                                                                ten = donvi_sudung_ten,
+                                                                thu_tu = 1,
+                                                                loai_donvi_sudung_id = loai_donvi_sudung_id,
+                                                                disid_2004 = disid_2004
+                                                            };
+                                                            uow.Insert(donViSuDung);
+                                                            hoSoDat.donvi_sudung_id = donViSuDung.id;
+                                                            //hoSoDat.donvi_sudung_bosung = donvi_sudung_ten;
+                                                        }
+                                                        hoSoDat.province_id = checkCell[0];
+                                                        hoSoDat.district_id = checkCell[1];
+                                                        hoSoDat.commune_id = checkCell[2];
+                                                        hoSoDat.donvi_quanly_id = donvi_quanly_id;
+                                                        string detailAdress = session.Find<Commune>(stm => stm.Where($"{nameof(Commune.comid_2004)} = '{checkCell[2]}'")).Select(x => x.address).FirstOrDefault();
+                                                        if (workSheet.Cells[$"G{i}"].Value != null)
+                                                        {
+                                                            hoSoDat.dia_chi = workSheet.Cells[$"G{i}"].Value.ToString() + "," + detailAdress;
+                                                        }
+                                                        else
+                                                        {
+                                                            hoSoDat.dia_chi = detailAdress;
+                                                        }
+                                                        if (workSheet.Cells[$"H{i}"].Value != null)
+                                                        {
+                                                            if (double.TryParse(workSheet.Cells[$"H{i}"].Value.ToString(), out double tongDienTichDat))
+                                                            {
+                                                                hoSoDat.tong_dientich_dat = tongDienTichDat;
+                                                            }
+                                                        }
+                                                        if (workSheet.Cells[$"I{i}"].Value != null)
+                                                        {
+                                                            if (double.TryParse(workSheet.Cells[$"I{i}"].Value.ToString(), out double dienTichDatAnNinh))
+                                                            {
+                                                                hoSoDat.dientich_dat_anninh = dienTichDatAnNinh;
+                                                            }
+                                                        }
+                                                        if (workSheet.Cells[$"J{i}"].Value != null)
+                                                        {
+                                                            if (double.TryParse(workSheet.Cells[$"J{i}"].Value.ToString(), out double dienTichDatKhac))
+                                                            {
+                                                                hoSoDat.dientich_datkhac = dienTichDatKhac;
+                                                            }
+                                                        }
+                                                        if (workSheet.Cells[$"K{i}"].Value != null)
+                                                        {
+                                                            hoSoDat.giay_cn_sdd = workSheet.Cells[$"K{i}"].Value.ToString();
+                                                        }
+                                                        if (workSheet.Cells[$"L{i}"].Value != null)
+                                                        {
+                                                            hoSoDat.so_quyetdinh_giaodat = workSheet.Cells[$"L{i}"].Value.ToString();
+                                                        }
+                                                        if (workSheet.Cells[$"M{i}"].Value != null)
+                                                        {
+                                                            if (double.TryParse(workSheet.Cells[$"M{i}"].Value.ToString(), out double dienTichDatGCN))
+                                                            {
+                                                                hoSoDat.dientich_gcn_sdd = dienTichDatGCN;
+                                                            }
+                                                        }
+                                                        if (workSheet.Cells[$"N{i}"].Value != null)
+                                                        {
+                                                            if (double.TryParse(workSheet.Cells[$"N{i}"].Value.ToString(), out double dienTichDatQH))
+                                                            {
+                                                                hoSoDat.dientich_quyhoach_mucdich_anninh = dienTichDatQH;
+                                                            }
+                                                        }
+                                                        if (workSheet.Cells[$"O{i}"].Value != null)
+                                                        {
+                                                            hoSoDat.phuongan_xuly = workSheet.Cells[$"O{i}"].Value.ToString();
+                                                        }
+                                                        if (workSheet.Cells[$"P{i}"].Value != null)
+                                                        {
+                                                            hoSoDat.ghi_chu = workSheet.Cells[$"P{i}"].Value.ToString();
+                                                        }
+
+                                                        int key = _hoSoDatRepository.SaveOrUpdate(hoSoDat, uow);
+                                                        if (key > 0)
+                                                        {
+
+                                                        }
+                                                        else
+                                                        {
+                                                            ListError.Add(new RestErrorDetail(i, "Không thế import bản ghi"));
+                                                        }
+                                                    }
+                                                }
+                                                else
+                                                    continue;
+
+
+                                                //int donvi_quanly_id = 0;
+                                                //var maCongAnTinh = session.Get(new LoaiDonViQuanLy { id = EnumDonViQuanLy.CongAnTinh }).ma;
+                                                //if (ma_donvi_quanly.Length > 1)
+                                                //{
+                                                //    var donViQuanLyCAT = session.Find<DonViQuanLy>(stm => stm.Where($"{nameof(DonViQuanLy.proid_2004)} = '{workSheet.Cells[$"D{i}"].Value.ToString()}' and {nameof(DonViQuanLy.loai_donvi_quanly_id)} = {EnumDonViQuanLy.CongAnTinh} ")).FirstOrDefault();
+                                                //    if (ma_donvi_quanly[0].ToUpper() == maCongAnTinh && donViQuanLyCAT != null)
+                                                //    {
+                                                //        donvi_quanly_id = donViQuanLyCAT.id;
+                                                //        //khối Ban giám đốc
+                                                //        if (!string.IsNullOrWhiteSpace(ma_donvi_quanly[1]) && ma_donvi_quanly[1].ToUpper() == session.Get(new LoaiDonViSuDung { id = EnumKhoiDVSDCongAnTinh.BanGiamDoc }).ma)
+                                                //        {
+                                                //            loai_donvi_sudung_id = EnumKhoiDVSDCongAnTinh.BanGiamDoc;
+                                                //            condition = $" {Sql.TableAndColumn<DonViSuDung>(nameof(DonViSuDung.loai_donvi_sudung_id))} = {EnumKhoiDVSDCongAnTinh.BanGiamDoc} and {Sql.TableAndColumn<DonViSuDung>(nameof(DonViSuDung.donvi_quanly_id))} = {donViQuanLyCAT.id} ";
+                                                //        }
+                                                //        else //khối quận huyện
+                                                //        {
+                                                //            disid_2004 = workSheet.Cells[$"E{i}"].Value.ToString();
+                                                //            loai_donvi_sudung_id = EnumKhoiDVSDCongAnTinh.CongAnQuanHuyenTP;
+                                                //            condition = $" {Sql.TableAndColumn<DonViSuDung>(nameof(DonViSuDung.loai_donvi_sudung_id))} = {EnumKhoiDVSDCongAnTinh.CongAnQuanHuyenTP} and {Sql.TableAndColumn<DonViSuDung>(nameof(DonViSuDung.donvi_quanly_id))} = {donViQuanLyCAT.id} and {Sql.TableAndColumn<DonViSuDung>(nameof(DonViSuDung.disid_2004))} = '{disid_2004}' ";
+                                                //        }
+                                                //    }
+                                                //}
+                                                //else
+                                                //{
+                                                //    var donViQuanLy = session.Find<DonViQuanLy>(stm => stm.Where($"{nameof(DonViQuanLy.ma)} = '{workSheet.Cells[$"B{i}"].Value.ToString()}'")).FirstOrDefault();
+                                                //    if (donViQuanLy != null)
+                                                //    {
+                                                //        donvi_quanly_id = donViQuanLy.id;
+                                                //        condition = $" {Sql.TableAndColumn<DonViSuDung>(nameof(DonViSuDung.donvi_quanly_id))} = {donViQuanLy.id} ";
+                                                //    }
+                                                //}
+                                            }
+                                            else
+                                            {
+                                                continue;
+                                            }
+                                        }
+                                        catch (System.Exception ex)
+                                        {
+                                            ListError.Add(new RestErrorDetail(ex.GetHashCode(), ex.Message));
+                                        }
+
+                                    }
+                                    if (ListError.Count() > 0)
+                                    {
+                                        return Json(new RestError
+                                        {
+                                            errors = ListError.ToArray(),
+                                        });
+                                    }
+                                    else
+                                    {
+                                        return Json(new RestBase(EnumErrorCode.OK));
+                                    }
+                                }
+                            }
+                        }
+                        //}
+                        //else
+                        //{
+                        //    HSSFWorkbook hssfwb = new HSSFWorkbook(fs);
+                        //    using (var session = OpenSession())
+                        //    {
+                        //        using (var uow = new UnitOfWork(DbFactory, session))
+                        //        {
+                        //            ISheet sheet = hssfwb.GetSheetAt(0);
+                        //            for (int i = 0; i < sheet.LastRowNum; i++)
+                        //            {
+                        //                if (sheet.GetRow(i).GetCell(0) != null)
+                        //                {
+                        //                    if (sheet.GetRow(i).GetCell(0).StringCellValue == "Người lập biểu")
+                        //                    {
+                        //                        countRecord = i - 1;
+                        //                    }
+                        //                }
+                        //            }
+                        //            for (int i = 12; i < countRecord; i++)
+                        //            {
+                        //                try
+                        //                {
+                        //                    HoSoDat hoSoDat = new HoSoDat();
+                        //                    hoSoDat.donvi_quanly = session.Get(new DonViQuanLy { id = donvi_quanly_id });
+                        //                    hoSoDat.donvi_quanly_id = donvi_quanly_id;
+
+                        //                    if (sheet.GetRow(i).GetCell(1).StringCellValue != null)
+                        //                    {
+                        //                        string donvi_quanly_ten = sheet.GetRow(i).GetCell(1).StringCellValue;
+                        //                        string where = $"LOWER(remove_vietnamese_signs({nameof(DonViSuDung.ten)})) = '{StringHelper.RemoveVietNameseSign(donvi_quanly_ten).ToLower()}'";
+                        //                        where += $" AND {nameof(DonViSuDung.donvi_quanly_id)}='{donvi_quanly_id}'";
+                        //                        DonViSuDung donvi_sudung = session.Find<DonViSuDung>(stm => stm.Where($"{where}")).FirstOrDefault();
+                        //                        //if (donvi_sudung != null)
+                        //                        //{
+                        //                        //    hoSoDat.donvi_sudung_id = donvi_sudung.id;
+                        //                        //}
+                        //                    }
+                        //                    hoSoDat.dia_chi = sheet.GetRow(i).GetCell(2).StringCellValue;
+                        //                    hoSoDat.tong_dientich_dat = double.Parse(sheet.GetRow(i).GetCell(3).StringCellValue);
+                        //                    hoSoDat.dientich_dat_anninh = double.Parse(sheet.GetRow(i).GetCell(4).StringCellValue);
+                        //                    hoSoDat.dientich_datkhac = double.Parse(sheet.GetRow(i).GetCell(5).StringCellValue);
+                        //                    hoSoDat.giay_cn_sdd = sheet.GetRow(i).GetCell(6).StringCellValue;
+                        //                    hoSoDat.dientich_gcn_sdd = double.Parse(sheet.GetRow(i).GetCell(7).StringCellValue);
+                        //                    hoSoDat.ghi_chu = sheet.GetRow(i).GetCell(8).StringCellValue;
+
+                        //                    int key = _hoSoDatRepository.SaveOrUpdate(hoSoDat, uow);
+                        //                    if (key > 0)
+                        //                    {
+
+                        //                    }
+                        //                    else
+                        //                    {
+                        //                        ListError.Add(new RestErrorDetail(i, "Không thế import bản ghi"));
+                        //                    }
+
+                        //                }
+                        //                catch (System.Exception ex)
+                        //                {
+                        //                    ListError.Add(new RestErrorDetail(ex.GetHashCode(), ex.Message));
+                        //                }
+
+                        //            }
+                        //            if (ListError.Count() > 0)
+                        //            {
+                        //                return Json(new RestError
+                        //                {
+                        //                    errors = ListError.ToArray(),
+                        //                });
+                        //            }
+                        //            else
+                        //            {
+                        //                return Json(new RestBase(EnumErrorCode.OK));
+                        //            }
+                        //        }
+                        //    }
+                        //}
+                    }
+                }
+                else
+                {
+                    return Json(new RestError(-1, "File không tồn tại"));
+                }
+            }
+            catch (Exception e)
+            {
+                return Json(new RestError(e));
+            }
+        }
+
+        [Route("ImportExcelForm")]
+        public IActionResult ImportExcelForm()
+        {
+            using (var session = OpenSession())
+            {
+
+                var stream = new MemoryStream();
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                string fileName = "ExcelImportForm.xlsx";
+                using (var package = new ExcelPackage(stream))
+                {
+
+                    var excelWorkSheet = package.Workbook.Worksheets.Add("Sheet1");
+                    List<string> numCol = new List<string>();
+                    List<string> listCol = new List<string>();
+                    string maxCol = "N";
+                    numCol.Add("E");
+                    listCol.Add("A"); listCol.Add("B"); listCol.Add("C"); listCol.Add("D"); listCol.Add("E"); listCol.Add("F"); listCol.Add("G");
+                    listCol.Add("H"); listCol.Add("I"); listCol.Add("J"); listCol.Add("K"); listCol.Add("L"); listCol.Add("M"); listCol.Add("N"); listCol.Add("O");
+                    //listCol.Add("A"); listCol.Add("B"); listCol.Add("C"); listCol.Add("D"); listCol.Add("E"); listCol.Add("F"); listCol.Add("G"); listCol.Add("H"); listCol.Add("I");
+                    //listCol.Add("J"); listCol.Add("K");
+                    excelWorkSheet.DefaultColWidth = 30;
+                    excelWorkSheet.DefaultRowHeight = 25;
+                    //Font 
+                    excelWorkSheet.Cells[$"A1:{maxCol}34"].Style.Font.Name = "Times New Roman";
+                    excelWorkSheet.Cells[$"A1:{maxCol}34"].Style.Font.Size = 14;
+                    excelWorkSheet.Cells[$"A1:{maxCol}34"].Style.WrapText = true;
+                    excelWorkSheet.Cells[$"A1:{maxCol}34"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    excelWorkSheet.Cells[$"A1:{maxCol}34"].Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+                    //Header ========================
+                    //Row 1
+                    excelWorkSheet.Cells["A1:K1"].Style.Font.Size = 13;
+                    excelWorkSheet.Cells["A1:K1"].Style.Font.Bold = true;
+                    excelWorkSheet.Cells["B1"].Value = "BỘ CÔNG AN";
+                    excelWorkSheet.Cells["I1:N1"].Merge = true;
+                    excelWorkSheet.Cells["I1:N1"].Value = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM";
+                    //Row 2
+                    excelWorkSheet.Cells["B2"].Value = "(ĐƠN VỊ CÔNG AN)";
+                    excelWorkSheet.Cells["I2:N2"].Merge = true;
+                    excelWorkSheet.Cells["I2:N2"].Value = "Độc lập- Tự do- Hạnh phúc";
+                    excelWorkSheet.Cells["I2:N2"].Style.Font.Bold = true;
+                    excelWorkSheet.Cells["I2:N2"].Style.Font.UnderLine = true;
+                    //Row 3
+                    excelWorkSheet.Cells[$"{maxCol}3"].Value = "Biểu số 01";
+                    excelWorkSheet.Cells[$"{maxCol}3"].Style.Font.Bold = true;
+                    //Row 4
+                    excelWorkSheet.Cells[$"A4:{maxCol}4"].Style.Font.Size = 15;
+                    excelWorkSheet.Cells[$"A4:{maxCol}4"].Style.Font.Bold = true;
+                    excelWorkSheet.Cells[$"A4:{maxCol}4"].Merge = true;
+                    excelWorkSheet.Cells[$"A4:{maxCol}4"].Value = "KẾT QUẢ THỐNG KÊ DIỆN TÍCH ĐẤT ĐAI NĂM...";
+
+                    //Row 5
+                    excelWorkSheet.Cells[$"A5:{maxCol}5"].Style.Font.Bold = true;
+                    excelWorkSheet.Cells[$"A5:{maxCol}5"].Style.Font.Italic = true;
+                    excelWorkSheet.Cells[$"A5:{maxCol}5"].Merge = true;
+                    excelWorkSheet.Cells[$"A5:{maxCol}5"].Value = "theo Quyết định số......./QĐ-BCA-H02 ngày..../.../2021 của Bộ Công an ban hành Phương án thực hiện thống kê đất đai hàng năm của Bộ Công an";
+
+                    //Row 6
+                    excelWorkSheet.Cells["A6:K6"].Style.Font.Italic = true;
+                    excelWorkSheet.Cells["A6:K6"].Merge = true;
+                    excelWorkSheet.Cells["A6:K6"].Value = "(Thời điểm thực hiện thống kê: ngày 01/12/2021)";
+                    //Row 7
+                    excelWorkSheet.Cells[$"{maxCol}7"].Style.Font.Italic = true;
+                    //excelWorkSheet.Cells["J7:K7"].Merge = true;
+                    excelWorkSheet.Cells[$"{maxCol}7"].Value = "Đơn vị tính diện tích: ha";
+                    excelWorkSheet.Cells[$"{maxCol}7"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Right;
+
+                    //Title =========================
+                    excelWorkSheet.Cells["A8:K9"].Style.Font.Bold = true;
+                    excelWorkSheet.Cells["A8:A9"].Merge = true;
+                    excelWorkSheet.Cells["A8:A9"].Value = "STT";
+                    excelWorkSheet.Cells["B8:B9"].Merge = true;
+                    excelWorkSheet.Cells["B8:B9"].Value = "Đơn vị được giao quản lí/trực tiếp sử dụng đất";
+                    excelWorkSheet.Cells["C8:C9"].Merge = true;
+                    excelWorkSheet.Cells["C8:C9"].Value = "Địa chỉ điểm đất";
+
+                    excelWorkSheet.Cells["D8:E8"].Merge = true;
+                    excelWorkSheet.Cells["D8:E8"].Value = "Quy mô được duyệt";
+                    excelWorkSheet.Cells["D9"].Value = "Cán bộ";
+                    excelWorkSheet.Cells["E9"].Value = "Quy mô";
+                    excelWorkSheet.Cells["F8:H8"].Merge = true;
+                    excelWorkSheet.Cells["F8:H8"].Value = "Diện tích đất thực tế đang quản lý, sử dụng";
+                    excelWorkSheet.Cells["F9"].Value = "Tổng diện tích đất (ha)";
+                    excelWorkSheet.Cells["G9"].Value = "Diện tích đất an ninh (ha)";
+                    excelWorkSheet.Cells["H9"].Value = "Diện tích đất khác (ha)";
+                    excelWorkSheet.Cells["I8:J8"].Merge = true;
+                    excelWorkSheet.Cells["I8:J8"].Value = "Giấy chứng nhận quyền sử dụng đất";
+                    excelWorkSheet.Cells["I9"].Value = "Số GCNQSDĐ";
+                    excelWorkSheet.Cells["J9"].Value = "Diện tích trên GCNQSDĐ (ha)";
+                    excelWorkSheet.Cells["K8:K9"].Merge = true;
+                    excelWorkSheet.Cells["K8:K9"].Value = "Bản đồ địa chính khu đất hoặc sơ đồ khoanh đất";
+                    excelWorkSheet.Cells["L8:L9"].Merge = true;
+                    excelWorkSheet.Cells["L8:L9"].Value = "Diện tích đất quy hoạch sử dụng vào mục đích an ninh (ha)";
+                    excelWorkSheet.Cells["M8:M9"].Merge = true;
+                    excelWorkSheet.Cells["M8:M9"].Value = "Phương án sắp xếp lại, xử lý nhà, đất";
+                    excelWorkSheet.Cells["N8:N9"].Merge = true;
+                    excelWorkSheet.Cells["N8:N9"].Value = "Ghi chú";
+                    excelWorkSheet.Cells[$"A8:{maxCol}8"].Style.Font.Color.SetColor(System.Drawing.Color.Black);
+                    excelWorkSheet.Row(8).Height = 87;
+                    excelWorkSheet.Cells[$"A8:{maxCol}9"].Style.Font.Bold = true;
+                    excelWorkSheet.Cells[$"A8:{maxCol}9"].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    excelWorkSheet.Cells[$"A8:{maxCol}9"].Style.Fill.BackgroundColor.SetColor(ColorTranslator.FromHtml("#eff0f1"));
+                    excelWorkSheet.Cells[$"A8:M9"].Style.WrapText = true;
+                    excelWorkSheet.Cells[$"A8:{maxCol}10"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    excelWorkSheet.Cells[$"A8:{maxCol}10"].Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+                    //
+                    //excelWorkSheet.Cells["A10:B10"].Merge = true;
+                    //excelWorkSheet.Cells["A10:B10"].Value = "(1)";
+                    //for (int i = 2; i < listCol.Count(); i++)
+                    //{
+                    //    if (i == 6)
+                    //    {
+                    //        excelWorkSheet.Cells[$"{listCol[i]}10"].Value = "(6=7+8)";
+                    //    }
+                    //    else
+                    //    {
+                    //        excelWorkSheet.Cells[$"{listCol[i]}10"].Value = "(" + i + ")";
+                    //    }
+
+                    //}
+                    //excelWorkSheet.Cells["D8:D11"].Merge = true;
+                    //excelWorkSheet.Cells["D8:D11"].Value = "Tổng diện tích đất";
+                    //excelWorkSheet.Cells["E8:G8"].Merge = true;
+                    //excelWorkSheet.Cells["E8:G8"].Value = "Mục đích sử dụng";
+                    //excelWorkSheet.Cells["E9:E11"].Merge = true;
+                    //excelWorkSheet.Cells["E9:E11"].Value = "Diện tích đất an ninh";
+                    //excelWorkSheet.Cells["F9:G9"].Merge = true;
+                    //excelWorkSheet.Cells["F9:G9"].Value = "Trong đó đất kết hợp vào mục đích khác";
+                    //excelWorkSheet.Cells["F10:F11"].Merge = true;
+                    //excelWorkSheet.Cells["F10:F11"].Value = "Diện tích đất kết hợp";
+                    //excelWorkSheet.Cells["G10:G11"].Merge = true;
+                    //excelWorkSheet.Cells["G10:G11"].Value = "Loại đất kết hợp";
+
+                    //excelWorkSheet.Cells["H8:J8"].Merge = true;
+                    //excelWorkSheet.Cells["H8:J8"].Value = "Tình hình đo đạc lập bản đồ địa hình";
+                    //excelWorkSheet.Cells["H9:H11"].Merge = true;
+                    //excelWorkSheet.Cells["H9:H11"].Value = "Diện tích đã đo đạc";
+                    //excelWorkSheet.Cells["I9:I11"].Merge = true;
+                    //excelWorkSheet.Cells["I9:I11"].Value = "Giấy chứng nhận đã cấp Sổ";
+                    //excelWorkSheet.Cells["J9:J11"].Merge = true;
+                    //excelWorkSheet.Cells["J9:J11"].Value = "Diện tích đã cấp giấy chứng nhận";
+                    //excelWorkSheet.Cells["K9:K11"].Merge = true;
+                    //excelWorkSheet.Cells["K9:K11"].Value = "Ghi chú";
+                    //
+                    for (int i = 0; i < 14; i++)
+                    {
+                        if (i == 5)
+                        {
+                            excelWorkSheet.Cells[$"{listCol[i]}10"].Value = "(6)= (7)+ (8)";
+                        }
+                        else
+                        {
+                            excelWorkSheet.Cells[$"{listCol[i]}10"].Value = "(" + (i + 1) + ")";
+                        }
+
+                    }
+                    //Body
+                    excelWorkSheet.Cells[$"A11:{maxCol}11"].Style.Font.Bold = true;
+                    excelWorkSheet.Cells[$"A11"].Value = "I";
+                    excelWorkSheet.Cells[$"B11:C11"].Merge = true;
+                    excelWorkSheet.Cells[$"B11:C11"].Value = "Vị trí đất tại thời điểm đầu kỳ báo cáo";
+                    excelWorkSheet.Cells[$"B11:C11"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+                    for (int i = 1; i <= 3; i++)
+                    {
+                        excelWorkSheet.Cells[$"A{11 + i}"].Value = i;
+                    }
+                    excelWorkSheet.Cells["A17"].Value = "......";
+                    excelWorkSheet.Cells["A18:K18"].Style.Font.Bold = true;
+                    excelWorkSheet.Cells["A18"].Value = "II";
+                    excelWorkSheet.Cells["B18:C18"].Merge = true;
+                    excelWorkSheet.Cells["B18:C18"].Value = "Vị trí đất hình thành trong kỳ báo cáo";
+                    excelWorkSheet.Cells["B18:C18"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+                    for (int i = 1; i <= 3; i++)
+                    {
+                        excelWorkSheet.Cells[$"A{18 + i}"].Value = i;
+                    }
+                    excelWorkSheet.Cells["A22"].Value = "......";
+                    //Footer
+                    excelWorkSheet.Cells[$"A24:{maxCol}26"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    excelWorkSheet.Cells[$"I24:{maxCol}24"].Merge = true;
+                    excelWorkSheet.Cells[$"I24:{maxCol}24"].Value = "Ngày            tháng        năm            ";
+                    excelWorkSheet.Cells[$"A25:{maxCol}25"].Style.Font.Bold = true;
+                    excelWorkSheet.Cells["A25:B25"].Merge = true;
+                    excelWorkSheet.Cells["A25:B25"].Value = "Người lập biểu";
+                    excelWorkSheet.Cells[$"I25:{maxCol}25"].Merge = true;
+                    excelWorkSheet.Cells[$"I25:{maxCol}25"].Value = "ĐƠN VỊ CÔNG AN";
+                    //
+                    excelWorkSheet.Cells["A26:K26"].Style.Font.Italic = true;
+                    excelWorkSheet.Cells["A26:B26"].Merge = true;
+                    excelWorkSheet.Cells["A26:B26"].Value = "(ký, ghi rõ họ tên)";
+                    excelWorkSheet.Cells["I26:K26"].Merge = true;
+                    excelWorkSheet.Cells["I26:K26"].Value = "(Thủ trưởng đơn vị ký tên, đóng dấu)";
+                    //
+                    excelWorkSheet.Cells["B28"].Value = "Hướng dẫn kê khai: ";
+                    excelWorkSheet.Cells["B28"].Style.Font.Bold = true;
+                    excelWorkSheet.Cells["B28"].Style.Font.UnderLine = true;
+                    excelWorkSheet.Cells["B28"].Style.Font.Italic = true;
+                    //
+                    for (int i = 29; i <= 34; i++)
+                    {
+                        excelWorkSheet.Cells[$"A{i}"].Value = "-";
+                        excelWorkSheet.Cells[$"A{i}"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    }
+                    excelWorkSheet.Cells[$"B29:{maxCol}34"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+                    excelWorkSheet.Cells[$"B29:{maxCol}29"].Merge = true;
+                    excelWorkSheet.Cells[$"B29:{maxCol}29"].Value = "Biểu được in trên khổ giấy A4 ";
+                    excelWorkSheet.Cells[$"B30:{maxCol}30"].Merge = true;
+                    excelWorkSheet.Cells[$"B30:{maxCol}30"].Value = "(ĐƠN VỊ CÔNG AN): là Công an các đơn vị, địa phương (Cục, Viện, Học viện, Trường, Bệnh viện, Văn phòng, Bộ Tư lệnh); Công an các tỉnh, thành phố trực thuộc Trung ương";
+                    excelWorkSheet.Cells[$"B31:{maxCol}31"].Merge = true;
+                    excelWorkSheet.Cells[$"B31:{maxCol}31"].Value = "Cột (2) ghi tên đơn vị trực tiếp quản lý, sử dụng đất (ví dụ: Công an xã A; Công an huyện B; Phòng Cảnh sát giao thông; Trại giam; Nhà điều dưỡng, Học viện ......)";
+                    excelWorkSheet.Cells[$"B32:{maxCol}32"].Merge = true;
+                    excelWorkSheet.Cells[$"B32:{maxCol}32"].Value = "Cột (3) ghi số nhà, tên đường phố (nếu có), tên đơn vị hành chính cấp xã, cấp huyện, cấp tỉnh nơi có điểm đất. (Đối với trường hợp điểm đất nằm trên địa bàn từ hai đơn vị hành chính (xã, huyện, tỉnh) trở lên thì kê khai đầy đủ từng đơn vị hành chính đến cấp xã.";
+                    excelWorkSheet.Cells[$"B33:{maxCol}33"].Merge = true;
+                    excelWorkSheet.Cells[$"B33:{maxCol}33"].Value = "Cột (7) ghi tên loại đất kết hợp: đất sản xuất nông nghiệp (SXN); đất lâm nghiệp (LNP); đất nuôi trồng thủy sản (NTS)....... (theo phụ lục số 01 Thông tư số 27/2018/TT-BTNMT ngày 14/12/2018)";
+                    excelWorkSheet.Cells[$"B34:{maxCol}34"].Merge = true;
+                    excelWorkSheet.Cells[$"B34:{maxCol}34"].Value = "Cột (11) ghi tình trạng sử dụng đất (ví dụ: tranh chấp, cho thuê, cho mượn, liên doanh, liên kết, đã có quyết định điều chuyển, bán, ... nhưng chưa thực hiện); hình thức sử dụng (chung, riêng)";
+                    //Set style for data table---------------------------------------------
+                    excelWorkSheet.Cells[$"A8:{maxCol}12"].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+                    excelWorkSheet.Cells[$"A8:{maxCol}8"].Style.Border.Top.Style = ExcelBorderStyle.Thin;
+                    using (var range = excelWorkSheet.Cells[$"A8:{maxCol}23"])
+                    {
+                        range.Style.Font.Color.SetColor(Color.Black);
+                        range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                        range.Style.Border.Left.Style = ExcelBorderStyle.Thin;
+                        range.Style.Border.Left.Color.SetColor(Color.Black);
+                        range.Style.Border.Right.Style = ExcelBorderStyle.Thin;
+                        range.Style.Border.Right.Color.SetColor(Color.Black);
+                    }
+                    excelWorkSheet.Cells[$"A13:{maxCol}22"].Style.Border.Bottom.Style = ExcelBorderStyle.Dashed;
+                    excelWorkSheet.Cells[$"A13:{maxCol}22"].Style.Border.Right.Color.SetColor(Color.Black);
+                    //
+                    excelWorkSheet.Cells[$"A23:{maxCol}23"].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+                    excelWorkSheet.Column(1).Width = 10;
+                    excelWorkSheet.Column(2).Width = 30;
+                    excelWorkSheet.Column(3).Width = 30;
+                    excelWorkSheet.Column(4).Width = 20;
+                    excelWorkSheet.Column(5).Width = 20;
+                    excelWorkSheet.Column(6).Width = 20;
+                    excelWorkSheet.Column(7).Width = 20;
+                    excelWorkSheet.Column(8).Width = 20;
+                    excelWorkSheet.Column(9).Width = 20;
+                    excelWorkSheet.Column(10).Width = 20;
+                    excelWorkSheet.Column(11).Width = 40;
+                    //
+                    excelWorkSheet.Row(4).Height = 30;
+                    excelWorkSheet.Row(5).Height = 30;
+                    excelWorkSheet.Row(6).Height = 30;
+                    excelWorkSheet.Row(8).Height = 30;
+                    excelWorkSheet.Row(9).Height = 40;
+                    //excelWorkSheet.Row(10).Height = 30;
+                    //excelWorkSheet.Row(11).Height = 30;
+                    //
+                    //Sheet2
+                    //var excelWorkSheet2 = package.Workbook.Worksheets.Add("Sheet2");
+                    //List<string> numCol2 = new List<string>();
+                    //List<string> listCol2 = new List<string>();
+                    //listCol2.Add("A"); listCol2.Add("B"); listCol2.Add("C"); listCol2.Add("D"); listCol2.Add("E"); listCol2.Add("F"); listCol2.Add("G"); listCol2.Add("H"); listCol2.Add("I");
+                    //listCol2.Add("J"); listCol2.Add("K");
+                    //excelWorkSheet2.DefaultColWidth = 30;
+                    //excelWorkSheet2.DefaultRowHeight = 25;
+                    ////Font 
+                    //excelWorkSheet2.Cells[$"A1:{maxCol}34"].Style.Font.Name = "Times New Roman";
+                    //excelWorkSheet2.Cells["A2:K34"].Style.Font.Size = 14;
+                    //excelWorkSheet2.Cells["A1:K34"].Style.WrapText = true;
+                    //excelWorkSheet2.Cells["A1:K12"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    //excelWorkSheet2.Cells["A1:K12"].Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+                    ////Header ========================
+                    ////Row 1
+                    //excelWorkSheet2.Cells["A1:K1"].Style.Font.Size = 13;
+                    //excelWorkSheet2.Cells["A1:K1"].Style.Font.Bold = true;
+                    //excelWorkSheet2.Cells["B1"].Value = "BỘ CÔNG AN";
+                    //excelWorkSheet2.Cells["F1:K1"].Merge = true;
+                    //excelWorkSheet2.Cells["F1:K1"].Value = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM";
+                    ////Row 2
+                    //excelWorkSheet2.Cells["B2"].Value = "CỤC H02";
+                    //excelWorkSheet2.Cells["F2:K2"].Merge = true;
+                    //excelWorkSheet2.Cells["F2:K2"].Value = "Độc lập- Tự do- Hạnh phúc";
+                    //excelWorkSheet2.Cells["F2:K2"].Style.Font.Bold = true;
+                    //excelWorkSheet2.Cells["F2:K2"].Style.Font.UnderLine = true;
+                    ////Row 3
+                    //excelWorkSheet2.Cells["K3"].Value = "Biểu mẫu số 02";
+                    //excelWorkSheet2.Cells["K3"].Style.Font.Bold = true;
+                    ////Row 4
+                    //excelWorkSheet2.Cells["A4:K4"].Style.Font.Size = 15;
+                    //excelWorkSheet2.Cells["A4:K4"].Style.Font.Bold = true;
+                    //excelWorkSheet2.Cells["A4:K4"].Merge = true;
+                    //excelWorkSheet2.Cells["A4:K4"].Value = "KẾT QUẢ THỐNG KÊ DIỆN TÍCH ĐẤT ĐAI NĂM...";
+
+                    ////Row 5
+                    //excelWorkSheet2.Cells["A5:K5"].Style.Font.Bold = true;
+                    //excelWorkSheet2.Cells["A5:K5"].Style.Font.Italic = true;
+                    //excelWorkSheet2.Cells["A5:K5"].Merge = true;
+                    //excelWorkSheet2.Cells["A5:K5"].Value = "theo Quyết định số......./QĐ-BCA-H02 ngày..../.../2021 của Bộ Công an ban hành Phương án thực hiện thống kê đất đai hàng năm của Bộ Công an";
+
+                    ////Row 6
+                    //excelWorkSheet2.Cells["A6:K6"].Style.Font.Italic = true;
+                    //excelWorkSheet2.Cells["A6:K6"].Merge = true;
+                    //excelWorkSheet2.Cells["A6:K6"].Value = "(Thời điểm thực hiện thống kê: ngày 01/12/2021)";
+                    ////Row 7
+                    //excelWorkSheet2.Cells["J7:K7"].Style.Font.Italic = true;
+                    //excelWorkSheet2.Cells["J7:K7"].Merge = true;
+                    //excelWorkSheet2.Cells["J7:K7"].Value = "Đơn vị tính diện tích: ha";
+                    //excelWorkSheet2.Cells["J7:K7"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Right;
+
+                    ////Title =========================
+                    //excelWorkSheet2.Cells["A8:K11"].Style.Font.Bold = true;
+                    //excelWorkSheet2.Cells["A8:A11"].Merge = true;
+                    //excelWorkSheet2.Cells["A8:A11"].Value = "STT";
+                    //excelWorkSheet2.Cells["B8:B11"].Merge = true;
+                    //excelWorkSheet2.Cells["B8:B11"].Value = "Đơn vị được giao quản lí/trực tiếp sử dụng đất";
+                    //excelWorkSheet2.Cells["C8:C11"].Merge = true;
+                    //excelWorkSheet2.Cells["C8:C11"].Value = "Địa chỉ điểm đất";
+                    //excelWorkSheet2.Cells["D8:D11"].Merge = true;
+                    //excelWorkSheet2.Cells["D8:D11"].Value = "Tổng diện tích đất";
+                    //excelWorkSheet2.Cells["E8:G8"].Merge = true;
+                    //excelWorkSheet2.Cells["E8:G8"].Value = "Mục đích sử dụng";
+                    //excelWorkSheet2.Cells["E9:E11"].Merge = true;
+                    //excelWorkSheet2.Cells["E9:E11"].Value = "Diện tích đất an ninh";
+                    //excelWorkSheet2.Cells["F9:G9"].Merge = true;
+                    //excelWorkSheet2.Cells["F9:G9"].Value = "Trong đó đất kết hợp vào mục đích khác";
+                    //excelWorkSheet2.Cells["F10:F11"].Merge = true;
+                    //excelWorkSheet2.Cells["F10:F11"].Value = "Diện tích đất kết hợp";
+                    //excelWorkSheet2.Cells["G10:G11"].Merge = true;
+                    //excelWorkSheet2.Cells["G10:G11"].Value = "Loại đất kết hợp";
+
+                    //excelWorkSheet2.Cells["H8:J8"].Merge = true;
+                    //excelWorkSheet2.Cells["H8:J8"].Value = "Tình hình đo đạc lập bản đồ địa hình";
+                    //excelWorkSheet2.Cells["H9:H11"].Merge = true;
+                    //excelWorkSheet2.Cells["H9:H11"].Value = "Diện tích đã đo đạc";
+                    //excelWorkSheet2.Cells["I9:I11"].Merge = true;
+                    //excelWorkSheet2.Cells["I9:I11"].Value = "Giấy chứng nhận đã cấp Sổ";
+                    //excelWorkSheet2.Cells["J9:J11"].Merge = true;
+                    //excelWorkSheet2.Cells["J9:J11"].Value = "Diện tích đã cấp giấy chứng nhận";
+                    //excelWorkSheet2.Cells["K9:K11"].Merge = true;
+                    //excelWorkSheet2.Cells["K9:K11"].Value = "Ghi chú";
+                    ////
+                    //for (int i = 0; i < 11; i++)
+                    //{
+                    //    if (i == 3)
+                    //    {
+                    //        excelWorkSheet2.Cells[$"{listCol2[i]}12"].Value = "(4)=(5)+(6)";
+                    //    }
+                    //    else
+                    //    {
+                    //        excelWorkSheet2.Cells[$"{listCol2[i]}12"].Value = "(" + (i + 1) + ")";
+                    //    }
+
+                    //}
+                    ////Body
+                    //excelWorkSheet2.Cells["A13:K13"].Style.Font.Bold = true;
+                    //excelWorkSheet2.Cells["A13:K13"].Style.Font.Bold = true;
+                    //excelWorkSheet2.Cells["A13"].Value = "I";
+                    //excelWorkSheet2.Cells["B13:C13"].Merge = true;
+                    //excelWorkSheet2.Cells["B13:C13"].Value = "Vị trí đất tại thời điểm đầu kỳ báo cáo";
+                    //excelWorkSheet2.Cells["B13:C13"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+                    //for (int i = 1; i <= 3; i++)
+                    //{
+                    //    excelWorkSheet2.Cells[$"A{13 + i}"].Value = i;
+                    //}
+                    //excelWorkSheet2.Cells["A17"].Value = "......";
+                    //excelWorkSheet2.Cells["A18:K18"].Style.Font.Bold = true;
+                    //excelWorkSheet2.Cells["A18"].Value = "II";
+                    //excelWorkSheet2.Cells["B18:C18"].Merge = true;
+                    //excelWorkSheet2.Cells["B18:C18"].Value = "Vị trí đất hình thành trong kỳ báo cáo";
+                    //excelWorkSheet2.Cells["B18:C18"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+                    //for (int i = 1; i <= 3; i++)
+                    //{
+                    //    excelWorkSheet2.Cells[$"A{18 + i}"].Value = i;
+                    //}
+                    //excelWorkSheet2.Cells["A22"].Value = "......";
+                    ////Footer
+                    //excelWorkSheet2.Cells["A24:K26"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    //excelWorkSheet2.Cells["I24:K24"].Merge = true;
+                    //excelWorkSheet2.Cells["I24:K24"].Value = "Ngày            tháng        năm            ";
+                    ////
+                    //excelWorkSheet2.Cells["A25:K25"].Style.Font.Bold = true;
+                    //excelWorkSheet2.Cells["A25:C25"].Merge = true;
+                    //excelWorkSheet2.Cells["A25:C25"].Value = "CỤC H02";
+                    //excelWorkSheet2.Cells["E25:G25"].Merge = true;
+                    //excelWorkSheet2.Cells["E25:G25"].Value = "UBND CẤP TỈNH";
+                    //excelWorkSheet2.Cells["I25:K25"].Merge = true;
+                    //excelWorkSheet2.Cells["I25:K25"].Value = "BỘ CÔNG AN";
+                    ////
+                    //excelWorkSheet2.Cells["A26:K26"].Style.Font.Italic = true;
+                    //excelWorkSheet2.Cells["A26:C26"].Merge = true;
+                    //excelWorkSheet2.Cells["A26:C26"].Value = "(Thủ trưởng đơn vị ký tên, đóng dấu)";
+                    //excelWorkSheet2.Cells["E26:G26"].Merge = true;
+                    //excelWorkSheet2.Cells["E26:G26"].Value = "(Thủ trưởng đơn vị ký tên, đóng dấu)";
+                    //excelWorkSheet2.Cells["I26:K26"].Merge = true;
+                    //excelWorkSheet2.Cells["I26:K26"].Value = "(Thủ trưởng đơn vị ký tên, đóng dấu)";
+                    ////
+                    //excelWorkSheet2.Cells["B28"].Value = "Hướng dẫn kê khai: ";
+                    //excelWorkSheet2.Cells["B28"].Style.Font.Bold = true;
+                    //excelWorkSheet2.Cells["B28"].Style.Font.UnderLine = true;
+                    //excelWorkSheet2.Cells["B28"].Style.Font.Italic = true;
+                    ////
+                    //for (int i = 29; i <= 34; i++)
+                    //{
+                    //    excelWorkSheet2.Cells[$"A{i}"].Value = "-";
+                    //    excelWorkSheet2.Cells[$"A{i}"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    //}
+                    //excelWorkSheet2.Cells["K29:K34"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+                    //excelWorkSheet2.Cells["B29:K29"].Merge = true;
+                    //excelWorkSheet2.Cells["B29:K29"].Value = "Biểu được in trên khổ giấy A4 ";
+                    //excelWorkSheet2.Cells["B30:K30"].Merge = true;
+                    //excelWorkSheet2.Cells["B30:K30"].Value = "(ĐƠN VỊ CÔNG AN): là Công an các đơn vị, địa phương (Cục, Viện, Học viện, Trường, Bệnh viện, Văn phòng, Bộ Tư lệnh); Công an các tỉnh, thành phố trực thuộc Trung ương";
+                    //excelWorkSheet2.Cells["B31:K31"].Merge = true;
+                    //excelWorkSheet2.Cells["B31:K31"].Value = "Cột (2) ghi tên đơn vị trực tiếp quản lý, sử dụng đất (ví dụ: Công an xã A; Công an huyện B; Phòng Cảnh sát giao thông; Trại giam; Nhà điều dưỡng, Học viện ......)";
+                    //excelWorkSheet2.Cells["B32:K32"].Merge = true;
+                    //excelWorkSheet2.Cells["B32:K32"].Value = "Cột (3) ghi số nhà, tên đường phố (nếu có), tên đơn vị hành chính cấp xã, cấp huyện, cấp tỉnh nơi có điểm đất. (Đối với trường hợp điểm đất nằm trên địa bàn từ hai đơn vị hành chính (xã, huyện, tỉnh) trở lên thì kê khai đầy đủ từng đơn vị hành chính đến cấp xã.";
+                    //excelWorkSheet2.Cells["B33:K33"].Merge = true;
+                    //excelWorkSheet2.Cells["B33:K33"].Value = "Cột (7) ghi tên loại đất kết hợp: đất sản xuất nông nghiệp (SXN); đất lâm nghiệp (LNP); đất nuôi trồng thủy sản (NTS)....... (theo phụ lục số 01 Thông tư số 27/2018/TT-BTNMT ngày 14/12/2018)";
+                    //excelWorkSheet2.Cells["B34:K34"].Merge = true;
+                    //excelWorkSheet2.Cells["B34:K34"].Value = "Cột (11) ghi tình trạng sử dụng đất (ví dụ: tranh chấp, cho thuê, cho mượn, liên doanh, liên kết, đã có quyết định điều chuyển, bán, ... nhưng chưa thực hiện); hình thức sử dụng (chung, riêng)";
+                    ////Set style for data table---------------------------------------------
+                    //excelWorkSheet2.Cells["A8:K12"].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+                    //excelWorkSheet2.Cells["A8:K8"].Style.Border.Top.Style = ExcelBorderStyle.Thin;
+                    //using (var range = excelWorkSheet2.Cells["A8:K23"])
+                    //{
+                    //    range.Style.Font.Color.SetColor(Color.Black);
+                    //    range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    //    range.Style.Border.Left.Style = ExcelBorderStyle.Thin;
+                    //    range.Style.Border.Left.Color.SetColor(Color.Black);
+                    //    range.Style.Border.Right.Style = ExcelBorderStyle.Thin;
+                    //    range.Style.Border.Right.Color.SetColor(Color.Black);
+                    //}
+                    //excelWorkSheet2.Cells["A13:K22"].Style.Border.Bottom.Style = ExcelBorderStyle.Dashed;
+                    //excelWorkSheet2.Cells["A13:K22"].Style.Border.Right.Color.SetColor(Color.Black);
+                    ////
+                    //excelWorkSheet2.Cells["A23:K23"].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+                    //excelWorkSheet2.Column(1).Width = 10;
+                    //excelWorkSheet2.Column(2).Width = 30;
+                    //excelWorkSheet2.Column(3).Width = 30;
+                    //excelWorkSheet2.Column(4).Width = 20;
+                    //excelWorkSheet2.Column(5).Width = 20;
+                    //excelWorkSheet2.Column(6).Width = 20;
+                    //excelWorkSheet2.Column(7).Width = 20;
+                    //excelWorkSheet2.Column(8).Width = 20;
+                    //excelWorkSheet2.Column(9).Width = 20;
+                    //excelWorkSheet2.Column(10).Width = 20;
+                    //excelWorkSheet2.Column(11).Width = 40;
+                    ////
+                    //excelWorkSheet2.Row(4).Height = 30;
+                    //excelWorkSheet2.Row(5).Height = 30;
+                    //excelWorkSheet2.Row(6).Height = 30;
+                    //excelWorkSheet2.Row(8).Height = 30;
+                    //excelWorkSheet2.Row(9).Height = 40;
+                    //excelWorkSheet2.Row(10).Height = 30;
+                    //excelWorkSheet2.Row(11).Height = 30;
+                    package.Save();
+                }
+                stream.Position = 0;
+                return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+        }
+    }
+}

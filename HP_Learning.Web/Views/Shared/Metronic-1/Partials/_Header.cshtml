@@ -1,0 +1,126 @@
+<!--begin::Header-->
+<div id="kt_header" class="header flex-column header-fixed">
+   <!--begin::Top-->
+   <div class="header-top">
+      <!--begin::Container-->
+      <div class="container">
+         <!--begin::Left-->
+         <div class="d-none d-lg-flex align-items-center mr-3">
+            <!--begin::Logo-->
+            @* <a href="/" class="mr-20"><img alt="Logo" src="~/assets/media/logos/logo-letter-9.png" class="max-h-35px" /></a> *@
+            <!--end::Logo-->
+            <!--begin::Tab Navs(for desktop mode)-->
+            <ul class="header-tabs nav align-self-end font-size-lg" role="tablist">
+               <!--begin::Item-->
+               <li class="nav-item"><a href="/XLHS/Home/Dashboard" class="nav-link py-4 px-6">Trang chủ</a></li>
+               <!--end::Item-->
+               <!--begin::Item-->
+               <li class="nav-item"><a href="#" class="nav-link py-4 px-6 active" data-toggle="tab" data-target="#kt_header_tab_1" role="tab">Dự án</a></li>
+               <!--end::Item-->
+               <!--begin::Item-->
+               <li class="nav-item mr-3"><a href="#" class="nav-link py-4 px-6" data-toggle="tab" data-target="#kt_header_tab_2" role="tab">Nhà & đất</a></li>
+               <!--end::Item-->
+               <!--begin::Item-->
+               <li class="nav-item mr-3"><a href="/XLHS/Document" class="nav-link py-4 px-6">Tình hình xử lý hồ sơ</a></li>
+               <!--end::Item-->
+               <!--begin::Item-->
+               <li class="nav-item mr-3"><a href="/XLHS/Legislation" class="nav-link py-4 px-6">Văn bản pháp luật</a></li>
+               <!--end::Item-->
+               <!--begin::Item-->
+               <li class="nav-item mr-3"><a href="#" class="nav-link py-4 px-6" data-toggle="tab" data-target="#kt_header_tab_5" role="tab">Quản lý chuyên cần</a></li>
+               <!--end::Item-->
+            </ul>
+            <!--begin::Tab Navs-->
+         </div>
+         <!--end::Left-->
+         <!--begin::Topbar-->
+         <div class="topbar bg-primary">
+            <!--begin::User-->
+            <div class="topbar-item">
+               <div class="btn btn-icon btn-hover-transparent-white w-lg-auto d-flex align-items-center btn-lg px-2" id="kt_quick_user_toggle">
+                  <div class="d-flex flex-column text-right pr-lg-3"><span class="text-white opacity-50 font-weight-bold font-size-sm d-none d-md-inline">Siêu Quản Trị</span><span class="text-white font-weight-bolder font-size-sm d-none d-md-inline">Administrator</span></div>
+                  <span class="symbol symbol-35"><span class="symbol-label font-size-h5 font-weight-bold text-white bg-white-o-30">A</span></span>
+               </div>
+            </div>
+            <!--end::User-->
+         </div>
+         <!--end::Topbar-->
+      </div>
+      <!--end::Container-->
+   </div>
+   <!--end::Top-->
+   <!--begin::Bottom-->
+   <div class="header-bottom">
+      <!--begin::Container-->
+      <div class="container">
+         <!--begin::Header Menu Wrapper-->
+         <div class="header-navs header-navs-left" id="kt_header_navs">
+            <!--begin::Tab Navs(for tablet and mobile modes)-->
+            <ul class="header-tabs p-5 p-lg-0 d-flex d-lg-none nav nav-bold nav-tabs" role="tablist">
+               <!--begin::Item-->
+               <li class="nav-item mr-2"><a href="#" class="nav-link btn btn-clean active" data-toggle="tab" data-target="#kt_header_tab_1" role="tab">Home</a></li>
+               <!--end::Item-->
+               <!--begin::Item-->
+               <li class="nav-item mr-2"><a href="#" class="nav-link btn btn-clean" data-toggle="tab" data-target="#kt_header_tab_2" role="tab">Reports</a></li>
+               <!--end::Item-->
+               <!--begin::Item-->
+               <li class="nav-item mr-2"><a href="#" class="nav-link btn btn-clean" data-toggle="tab" data-target="#kt_header_tab_2" role="tab">Orders</a></li>
+               <!--end::Item-->
+               <!--begin::Item-->
+               <li class="nav-item mr-2"><a href="#" class="nav-link btn btn-clean" data-toggle="tab" data-target="#kt_header_tab_2" role="tab">Help Ceter</a></li>
+               <!--end::Item-->
+            </ul>
+            <!--begin::Tab Navs-->
+            <!--begin::Tab Content-->
+            <div class="tab-content">
+               <!--begin::Tab Pane-->
+               <div class="tab-pane py-5 p-lg-0 show" id="kt_header_tab_1">
+                  <!--begin::Menu-->
+                  <div id="kt_header_menu" class="header-menu header-menu-mobile header-menu-layout-default header-menu-root-arrow">
+                     <!--begin::Nav-->
+                     <ul class="menu-nav">
+                        <li class="menu-item" aria-haspopup="true"><a href="/XLHS/Projects/List" class="menu-link"><span class="menu-text">Danh sách</span></a></li>
+                        <li class="menu-item" aria-haspopup="true"><a href="/XLHS/Projects/Report" class="menu-link"><span class="menu-text">Báo cáo thống kê</span></a></li>
+                     </ul>
+                     <!--end::Nav-->
+                  </div>
+                  <!--end::Menu-->
+               </div>
+               <!--begin::Tab Pane-->
+               <!--begin::Tab Pane-->
+               <div class="tab-pane p-5 p-lg-0" id="kt_header_tab_2">
+                  <!--begin::Menu-->
+                  <div id="kt_header_menu" class="header-menu header-menu-mobile header-menu-layout-default header-menu-root-arrow">
+                     <!--begin::Nav-->
+                     <ul class="menu-nav">
+                        <li class="menu-item" aria-haspopup="true"><a href="/XLHS/Land" class="menu-link"><span class="menu-text">Đất an ninh</span></a></li>
+                        <li class="menu-item" aria-haspopup="true"><a href="/XLHS/Land/House" class="menu-link"><span class="menu-text">Nhà</span></a></li>
+                     </ul>
+                     <!--end::Nav-->
+                  </div>
+                  <!--end::Menu-->
+               </div>
+               <!--begin::Tab Pane-->
+               <div class="tab-pane p-5 p-lg-0" id="kt_header_tab_5">
+                  <!--begin::Menu-->
+                  <div id="kt_header_menu" class="header-menu header-menu-mobile header-menu-layout-default header-menu-root-arrow">
+                     <!--begin::Nav-->
+                     <ul class="menu-nav">
+                        <li class="menu-item" aria-haspopup="true"><a href="/XLHS/TimeKeeping" class="menu-link"><span class="menu-text">Dashboard</span></a></li>
+                        <li class="menu-item" aria-haspopup="true"><a href="/XLHS/TimeKeeping/Sheet" class="menu-link"><span class="menu-text">Báo cáo</span></a></li>
+                     </ul>
+                     <!--end::Nav-->
+                  </div>
+                  <!--end::Menu-->
+               </div>
+               <!--begin::Tab Pane-->
+            </div>
+            <!--end::Tab Content-->
+         </div>
+         <!--end::Header Menu Wrapper-->
+      </div>
+      <!--end::Container-->
+   </div>
+   <!--end::Bottom-->
+</div>
+<!--end::Header-->

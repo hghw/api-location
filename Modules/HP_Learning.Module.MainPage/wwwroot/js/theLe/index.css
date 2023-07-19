@@ -1,0 +1,35 @@
+﻿.ui.menu .item {
+    font-weight: 700;
+}
+
+#uploadSuccess, #uploadFail, #errorUpload, #loader {
+    z-index: 99999;
+}
+
+.ui.footer.segment {
+    padding: 2em 0em;
+    margin-top: 5em 0em;
+}
+.font-weight-bold{
+    font-weight: 700;
+}
+.text-uppercase {
+    text-transform: uppercase;
+    font-family: 'Comfortaa', sans-serif;
+}
+.mt-5{
+    margin-top: 2em;
+}
+.mt-3{
+    margin-top: 1em;
+}
+.mt-4 {
+    margin-top: 1.5em;
+}
+.text-center {
+    text-align: center;
+    font-family: 'Comfortaa', sans-serif;
+}
+.ml-5{
+    margin-left: 2em;
+}

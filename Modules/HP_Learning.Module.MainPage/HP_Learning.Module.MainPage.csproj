@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <ItemGroup>
+    <PackageReference Include="VietGIS.Infrastructure.PostgreSQL" Version="1.0.4" />
+  </ItemGroup>
+</Project>

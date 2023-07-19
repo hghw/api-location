@@ -1,0 +1,400 @@
+﻿using Dapper;
+using Microsoft.AspNetCore.Mvc;
+using QLHoso.Business.DTO;
+using System.Collections.Generic;
+using System.Linq;
+using Smooth.IoC.UnitOfWork.Interfaces;
+using AutoMapper;
+using Microsoft.AspNetCore.Hosting;
+using QLHoso.Business.Models.Entities.Category;
+using QLHoso.Business.ViewModels.Category;
+using QLHoso.Module.CMS.Areas.CMS.Controllers.Extends;
+using QLHoso.Business.Models.DTO;
+using QLHoso.Business.Extensions;
+using QLHoso.Business.Repositories.DanhMuc;
+using QLHoso.Business.Models.DanhMuc;
+
+namespace QLHoso.Module.CMS.Areas.CMS.Controllers
+{
+    [Route("[area]/[controller]")]
+    public class DanhMucController : BaseController
+    {
+
+        private readonly IWebHostEnvironment _hostingEnvironment;
+        private readonly ILoaiDanhMucRepository _loaiDanhMucRepository;
+
+        public DanhMucController(
+
+            IDbFactory dbFactory,
+            IMapper mapper,
+            ILoaiDanhMucRepository loaiDanhMucRepository,
+            IWebHostEnvironment hostingEnvironment
+
+            ) : base(dbFactory, mapper)
+        {
+            _loaiDanhMucRepository = loaiDanhMucRepository;
+            _hostingEnvironment = hostingEnvironment;
+        }
+
+        [Route("")]
+        public IActionResult Index()
+        {
+
+            return View();
+
+        }
+
+        [Route("list")]
+        public RestBase getListCategory(int id, int idParent = 0)
+        {
+            using (var session = OpenSession()) {
+                var loaiDanhMuc = _loaiDanhMucRepository.GetKey(id, session);
+                if (loaiDanhMuc == null)
+                {
+                    return new RestError
+                    {
+                        errors = new RestErrorDetail[]
+                           {
+                            new RestErrorDetail
+                            {
+                                message = "Loại danh mục không tồn tại. Xin vui lòng kiểm tra lại!"
+                            }
+                           }
+                    };
+                }
+
+                var items = new List<DanhMucViewItem>();
+
+                if (loaiDanhMuc.parent_id > 0)
+                {
+                    var selectSQL = $"SELECT c.{nameof(DanhMuc.id)}, c.{nameof(DanhMuc.mo_ta)}, p.{nameof(DanhMuc.mo_ta)} AS {nameof(DanhMucViewItem.thuoc)} FROM category.{loaiDanhMuc.ten_bang} c, category.{loaiDanhMuc.ref_table_name} p WHERE c.{loaiDanhMuc.ref_col_name} = p.id ";
+                    if (idParent > 0) {
+                        selectSQL = selectSQL + $" AND c.{loaiDanhMuc.ref_col_name} = {idParent}";
+                    }
+                    items = session.Query<DanhMucViewItem>(selectSQL + $" ORDER BY {nameof(DanhMuc.id)}").AsList();
+                }
+                else { 
+                    items = session.Query<DanhMucViewItem>($"SELECT * FROM category.{loaiDanhMuc.ten_bang} ORDER BY {nameof(DanhMuc.id)}").AsList();
+                }
+
+                return new RestData
+                {
+                    data = items
+                };
+            }
+        }
+
+        [Route("jstree")]
+        public JSTree JsTree()
+        {
+            using (var session = OpenSession())
+            {
+                var dsDanhmuc = session.Query<LoaiDanhMuc>($"SELECT * FROM category.ds_danhmuc ORDER BY order_id");
+                var nodes = new List<JSTree>();
+                foreach (var item in dsDanhmuc)
+                {
+                    nodes.Add(new JSTree()
+                    {
+                        id = item.id,
+                        text = " " + item.ten_danhmuc.ToUpper(),
+                        data = new { parent_id = item.parent_id, parent_name = item.parent_name}
+                    }); ;
+                }
+                return new JSTree()
+                {
+                    id = 0,
+                    text = " DANH MỤC",
+                    children = nodes,
+                    state = new JSTreeNodeState { opened = true }
+                };
+            }
+        }
+
+
+        [Route("detail")]
+        public RestBase getMoTaDanhMuc(int id , int type_id)
+        {
+            using (var session = OpenSession()) {
+                var loaiDanhMuc = _loaiDanhMucRepository.GetKey(type_id, session);
+                if (loaiDanhMuc == null)
+                {
+                    return new RestError
+                    {
+                        errors = new RestErrorDetail[]
+                           {
+                            new RestErrorDetail
+                            {
+                                message = "Loại danh mục không tồn tại. Xin vui lòng kiểm tra lại!"
+                            }
+                           }
+                    };
+                }
+                
+                var item = session.Query<string>($"Select \"mo_ta\" from category.{loaiDanhMuc.ten_bang} where id ={id}").First();
+                return new RestData
+                {
+                    data = item
+                };
+            }
+        }
+
+        [HttpPost]
+        [Route("create")]
+        public RestBase CreateDanhMuc(CategoryDTO item)
+        {
+            if (!ModelState.IsValid) {
+                return new RestError
+                {
+                    errors = new RestErrorDetail[]
+                        {
+                            new RestErrorDetail
+                            {
+                                message = ModelState.Message()
+                            }
+                        }
+                };
+            }
+
+            using (var session = OpenSession()) {
+                var loaiDanhMuc = _loaiDanhMucRepository.GetKey(item.type_id, session);
+                if (loaiDanhMuc == null)
+                {
+                    return new RestError
+                    {
+                        errors = new RestErrorDetail[]
+                           {
+                            new RestErrorDetail
+                            {
+                                message = "Loại danh mục không tồn tại. Xin vui lòng kiểm tra lại!"
+                            }
+                           }
+                    };
+                }
+
+                if (loaiDanhMuc.parent_id > 0) {
+                    if (item.parent_id == 0) {
+                        return new RestError
+                        {
+                           errors = new RestErrorDetail[]
+                           {
+                                new RestErrorDetail
+                                {
+                                    message = $"Vui lòng chọn danh mục cha!"
+                                }
+                           }
+                        };
+                    }
+                }
+
+                if (isItemExisted(loaiDanhMuc.ten_bang, item.mo_ta, item.id, item.parent_id, loaiDanhMuc.ref_col_name))
+                {
+                    return new RestError
+                    {
+                        errors = new RestErrorDetail[]
+                        {
+                        new RestErrorDetail
+                        {
+                            message = "Danh mục đã tồn tại. Xin vui lòng kiểm tra lại!"
+                        }
+                        }
+                    };
+                }
+
+                if (loaiDanhMuc.parent_id > 0)
+                {
+                    if (session.Execute($"INSERT INTO category.{loaiDanhMuc.ten_bang}(mo_ta,\"{loaiDanhMuc.ref_col_name}\") VALUES ('{item.mo_ta}','{item.parent_id}')") > 0)
+                    {
+                        return new RestData();
+                    }
+                }
+                else
+                {
+                    if (session.Execute($"INSERT INTO category.{loaiDanhMuc.ten_bang}(mo_ta) VALUES ('{item.mo_ta}')") > 0)
+                    {
+                        return new RestData();
+                    }
+                }
+            }
+
+            return new RestError
+            {
+                errors = new RestErrorDetail[]
+                    {
+                        new RestErrorDetail
+                        {
+                            message = "Có lỗi xảy ra khi thêm dữ liệu. Xin vui lòng kiểm tra lại!"
+                        }
+                    }
+            };
+        }
+
+
+        [HttpPost]
+        [Route("update")]
+        public RestBase UpDateDanhMuc(CategoryDTO item)
+        {
+            if (!ModelState.IsValid)
+            {
+                return new RestError
+                {
+                    errors = new RestErrorDetail[]
+                        {
+                            new RestErrorDetail
+                            {
+                                message = ModelState.Message()
+                            }
+                        }
+                };
+            }
+
+            using (var session = OpenSession())
+            {
+                var loaiDanhMuc = _loaiDanhMucRepository.GetKey(item.type_id, session);
+                if (loaiDanhMuc == null)
+                {
+                    return new RestError
+                    {
+                        errors = new RestErrorDetail[]
+                           {
+                            new RestErrorDetail
+                            {
+                                message = "Loại danh mục không tồn tại. Xin vui lòng kiểm tra lại!"
+                            }
+                           }
+                    };
+                }
+
+                if (loaiDanhMuc.parent_id > 0)
+                {
+                    if (item.parent_id == 0)
+                    {
+                        return new RestError
+                        {
+                            errors = new RestErrorDetail[]
+                           {
+                                new RestErrorDetail
+                                {
+                                    message = $"Vui lòng chọn danh mục cha!"
+                                }
+                           }
+                        };
+                    }
+                }
+
+                if (isItemExisted(loaiDanhMuc.ten_bang, item.mo_ta, item.id, item.parent_id, loaiDanhMuc.ref_col_name))
+                {
+                    return new RestError
+                    {
+                        errors = new RestErrorDetail[]
+                        {
+                        new RestErrorDetail
+                        {
+                            message = "Danh mục đã tồn tại. Xin vui lòng kiểm tra lại!"
+                        }
+                        }
+                    };
+                }
+
+
+                if (loaiDanhMuc.parent_id > 0)
+                {
+                    if (session.Execute($"Update category.{loaiDanhMuc.ten_bang} SET  mo_ta = '{item.mo_ta}' , {loaiDanhMuc.ref_col_name} = {item.parent_id}  where id ={item.id}") > 0)
+                    {
+                        return new RestData();
+                    }
+                }
+                else {
+                    if (session.Execute($"Update category.{loaiDanhMuc.ten_bang} SET  mo_ta = '{item.mo_ta}'  where id ={item.id}") > 0)
+                    {
+                        return new RestData();
+                    }
+                }
+            }
+           
+
+            return new RestError
+            {
+                errors = new RestErrorDetail[]
+                    {
+                        new RestErrorDetail
+                        {
+                            message = "Có lỗi xảy ra khi cập nhật . Xin vui lòng kiểm tra lại!"
+                        }
+                    }
+            };
+        }
+
+        private bool isItemExisted(string tableName, string mo_ta, int id = 0, int parentID = 0, string refColName = "")
+        {
+            bool isExisted = false;
+            if (parentID > 0)
+            {
+                var sqlCheck = $"SELECT COUNT(id) FROM category.{tableName} WHERE lower(mo_ta) = '{mo_ta.ToLower()}' AND {refColName} = {parentID}  ";
+                if (id > 0)
+                {
+                    sqlCheck += $" AND id <> {id}";
+                }
+                using (var session = OpenSession())
+                {
+                    isExisted = session.ExecuteScalar<int>(sqlCheck) > 0;
+                }
+            }
+            else
+            {
+                var sqlCheck = $"SELECT COUNT(id) FROM category.{tableName} WHERE lower(mo_ta) = '{mo_ta.ToLower()}' ";
+                if (id > 0)
+                {
+                    sqlCheck += $" AND id <> {id}";
+                }
+                using (var session = OpenSession())
+                {
+                    isExisted = session.ExecuteScalar<int>(sqlCheck) > 0;
+                }
+            }
+
+
+            return isExisted;
+        }
+
+        [Route("delete")]
+        public RestBase deleteDanhMuc(int id = 0, int type_id = 0)
+        {
+
+            using (var session = OpenSession())
+            {
+                var loaiDanhMuc = _loaiDanhMucRepository.GetKey(type_id, session);
+                if (loaiDanhMuc == null)
+                {
+                    return new RestError
+                    {
+                        errors = new RestErrorDetail[]
+                           {
+                            new RestErrorDetail
+                            {
+                                message = "Loại danh mục không tồn tại. Xin vui lòng kiểm tra lại!"
+                            }
+                           }
+                    };
+                }
+
+                if (session.Execute($"DELETE FROM category.{loaiDanhMuc.ten_bang} WHERE id = {id}") > 0)
+                {
+                    return new RestData();
+                }
+            }
+
+            return new RestError
+            {
+                errors = new RestErrorDetail[]
+                    {
+                        new RestErrorDetail
+                        {
+                            message = "Có lỗi xảy ra khi xóa dữ liệu. Xin vui lòng kiểm tra lại!"
+                        }
+                    }
+            };
+
+        }
+
+    }
+}

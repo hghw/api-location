@@ -1,0 +1,138 @@
+﻿@{
+    ViewData["Title"] = "Bài thi";
+} 
+    <script src="/_content/HP_Learning.Module.MainPage/lib/jquery/dist/jquery.min.js"></script>
+
+    <div class="ui main text container" style="margin: 6em 0em;">
+        <div id="titleTimeout">
+            <span id="hethan" style="margin-top: 50px; font-weight: bold;">hết thời gian</span> 
+            <p id="" style="margin-top: 0;">nộp bài dự thi.</p>
+        </div>
+
+        @*<img class="ui fluid image" src="~/assets/media/bg/bannerUBND.png" style="margin-bottom: 60px;">
+        <form class="ui form" id="ui_form">
+            @Html.AntiForgeryToken()
+            <h4 class="ui dividing header">Tham gia thi <span style="font-style: italic;color:#db2828">(* trường bắt buộc phải nhập)</span></h4>
+            <div class="field">
+                <div class="two fields">
+                    <div class="twelve wide required field">
+                        <label>Trường</label>
+                        <input type="text" name="truong" placeholder="Nhập thông tin trường">
+                    </div>
+                    <div class="four wide required field">
+                        <label>Lớp</label>
+                        <input type="text" name="lop" placeholder="2E">
+                    </div>
+                </div>
+            </div>
+            <div class="field required">
+                <label>Họ và tên</label>
+                <input type="text" name="ho_ten" placeholder="Nguyễn Văn A">
+            </div>
+            <div class="field">
+                <div class="two fields">
+                    <div class="field required">
+                        <label>Quận/Huyện</label>
+                        <select class="ui fluid dropdown" id="district_code">
+                            <option value="" selected>Tất cả Quận/Huyện</option>
+                        </select>
+                    </div>
+                    <div class="field required">
+                        <label>Xã/Phường</label>
+                        <select class="ui fluid dropdown" id="commune_code">
+                            <option value="" selected>Tất cả Xã/Phường</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+                <div class="field">
+                <div class="two fields">
+                    <div class="field">
+                        <label>Số điện thoại</label>
+                        <input type="text" name="so_dt" placeholder="0926381273">
+                    </div>
+                    <div class="field">
+                        <label>Email</label>
+                        <input type="text" name="email" placeholder="email@email.com">
+                    </div>
+                </div>
+            </div>
+            <h4 class="ui dividing header">Danh sách tệp</h4>
+            <div class="field">
+                <div id="drag-drop-area"></div>
+            </div>
+            <span class="text-error"></span>
+            <h4 class="ui dividing header" style="margin-top: 40px;">Nộp bài dự thi</h4>
+            <div class="field">
+                <button type="submit" class="ui positive labeled icon button g-recaptcha" id="btn-success" >
+                    <i class="cloud upload icon"></i>
+                    Tải bài thi lên
+                </button>
+            </div>
+            <div class="ui error message"></div>
+        </form>*@
+</div>
+<div class="ui inverted vertical footer segment">
+    <div class="ui aligned container">
+        <div class="ui horizontal inverted">
+            <p>Sở Thông tin và Truyền thông Thành phố Hải Phòng, 62 Võ Thị Sáu, Ngô Quyền, Thành phố Hải Phòng </p>
+            <p>Số điện thoại: 02253640073/0931580079</p>
+            <p>Email: thongtin_sotttt@haiphong.gov.vn</p>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+var uppy = new Uppy.Core({
+    debug: true,
+    autoProceed: true,
+    showProgressDetails: true,
+    restrictions: {
+        maxFileSize: 100000000,
+        maxNumberOfFiles: 1,
+        minNumberOfFiles: 1,
+    },
+})
+    .use(Uppy.Dashboard, {
+        inline: true,
+        height: 300,
+        target: '#drag-drop-area',
+        disableStatusBar: false,
+
+        locale: Uppy.locales.vi_VN
+    })
+});
+</script>
+    @* modal upload lỗi*@
+        <div class="ui basic modal" id="uploadFail">
+      <div class="ui icon header" style="height: 180px;">
+        <i class="close icon" style="margin-top: 30px;"></i>
+        <span>Tải lên thất bại</span>
+      </div>
+      <div class="actions">
+            <div class="ui green ok inverted button">
+              <i class="checkmark icon"></i>
+              <span>Đóng</span>
+            </div>
+      </div>
+    </div>
+    @* modal submit lỗi*@
+        <div class="ui basic modal" id="errorUpload">
+      <div class="ui icon header" style="height: 180px;">
+        <i class="close icon" style="margin-top: 30px;"></i>
+        Lỗi hệ thống
+      </div>
+      <div class="actions">
+            <div class="ui green ok inverted button">
+              <i class="checkmark icon"></i>
+              Đóng
+            </div>
+      </div>
+    </div>
+
+    @*//loader*@
+
+    <div class="ui centered inline loader" id="loader"></div>
+
+<link rel="stylesheet" href="/_content/HP_Learning.Module.MainPage/js/baiThi/index.css" />

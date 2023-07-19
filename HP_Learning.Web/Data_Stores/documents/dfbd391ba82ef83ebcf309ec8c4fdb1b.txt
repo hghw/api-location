@@ -1,0 +1,226 @@
+using AutoMapper;
+using Dapper.FastCrud;
+using VietGIS.Infrastructure.Models.DTO.Response;
+using VietGIS.Infrastructure.Enums;
+using VietGIS.Infrastructure.Models.Entities.Public;
+using VietGIS.Infrastructure.Repositories.Public;
+using Microsoft.AspNetCore.Mvc;
+using HP_Learning.Module.XLHS.Areas.XLHS.Controllers.Extends;
+using Smooth.IoC.UnitOfWork.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace HP_Learning.Module.XLHS.Areas.XLHS.Controllers
+{
+    [Route("[area]/[controller]")]
+    public class ChuDauTuController : BaseController
+    {
+        private readonly ChuDauTuRepository _chuDauTuRepository;
+        public ChuDauTuController(
+            ChuDauTuRepository chuDauTuRepository,
+             IDbFactory dbFactory,
+                     IMapper mapper) : base(dbFactory, mapper)
+        {
+            _chuDauTuRepository = chuDauTuRepository;
+        }
+
+        public IActionResult Index()
+        {
+            return View();
+        }
+
+         [HttpGet]
+        [Route("getListData")]
+        public IActionResult GetList()
+        {
+            using (var session = OpenSession())
+            {
+                List<ChuDauTu> data = session.Find<ChuDauTu>(stm=>stm.OrderBy($"{nameof(ChuDauTu.ten_donvi):C} ASC")  ).ToList();
+                return Json(new RestData
+                {
+                    data = data,
+
+                });
+            }
+
+
+        }
+        [Route("getItem")]
+        public IActionResult GetItem(int id)
+        {
+            using (var session = OpenSession())
+            {
+                ChuDauTu data = session.Get(new ChuDauTu {id = id});
+
+                return Json(new RestData
+                {
+                    data = data,
+
+                });
+            }
+
+
+        }
+        [Route("delete")]
+        public RestBase Delete(int id)
+        {
+            using (var session = OpenSession())
+            {
+                var existItem = _chuDauTuRepository.GetKey(id, session);
+                if (existItem == null)
+                {
+                    return new RestError
+                    {
+                        errors = new RestErrorDetail[]
+                            {
+                                new RestErrorDetail
+                                {
+                                    message = "chủ đầu tư không tồn tại!"
+                                }
+                            }
+                    };
+                }
+                //
+                using (var uow = session.UnitOfWork())
+                {
+                    try
+                    {
+                        //session.Execute($@"DELETE FROM chiphi_goithau WHERE goithau_id = {id}");
+
+                        if (!_chuDauTuRepository.DeleteKey(id, session))
+                        {
+                            return new RestError();
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        uow.Rollback();
+                        return new RestError
+                        {
+                            errors = new RestErrorDetail[]
+                            {
+                                new RestErrorDetail
+                                {
+                                    message = "Xóa thất bại. Vui lòng thử lại sau!"
+                                }
+                            }
+                        };
+                    }
+                }
+                //
+                return new RestBase(EnumErrorCode.OK);
+            }
+        }
+        [Route("deleteMultiItem")]
+        public RestBase DeleteMulti(List<int> ids)
+        {
+            using (var session = OpenSession())
+            {
+                foreach (var id in ids)
+                {
+                    var existItem = _chuDauTuRepository.GetKey(id, session);
+                if (existItem == null)
+                {
+                    return new RestError
+                    {
+                        errors = new RestErrorDetail[]
+                            {
+                                new RestErrorDetail
+                                {
+                                    message = "chủ đầu tư không tồn tại!"
+                                }
+                            }
+                    };
+                }
+                //
+                using (var uow = session.UnitOfWork())
+                {
+                    try
+                    {
+
+                        if (!_chuDauTuRepository.DeleteKey(id, session))
+                        {
+                            return new RestError();
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        uow.Rollback();
+                        return new RestError
+                        {
+                            errors = new RestErrorDetail[]
+                            {
+                                new RestErrorDetail
+                                {
+                                    message = "Xóa thất bại. Vui lòng thử lại sau!"
+                                }
+                            }
+                        };
+                    }
+                }
+                }
+                
+                return new RestBase(EnumErrorCode.OK);
+            }
+        }
+
+        [HttpPost]
+        [Route("createOrUpdate")]
+        public IActionResult CreateOrUpdate(ChuDauTu item)
+        {
+            var restData = new RestBase("");
+            using (var session = OpenSession())
+            {
+                using (var uow = session.UnitOfWork())
+                {
+                    var chuDauTu = new ChuDauTu();
+                    try
+                    {
+                            if (item.id > 0)
+                            {
+                                chuDauTu = new ChuDauTu
+                                {
+                                    id = item.id,
+                                    ten_donvi = item.ten_donvi,
+                                    khu_vuc = item.khu_vuc,
+                                    dia_chi = item.dia_chi,
+                                    canbo_quanly_diaban = item.canbo_quanly_diaban
+                                };
+                            }
+                            else
+                            {
+                                chuDauTu = new ChuDauTu
+                                {
+                                   ten_donvi = item.ten_donvi,
+                                    khu_vuc = item.khu_vuc,
+                                    dia_chi = item.dia_chi,
+                                    canbo_quanly_diaban = item.canbo_quanly_diaban
+                                };
+                            }
+                        _chuDauTuRepository.SaveOrUpdate(chuDauTu, uow);
+                         restData =  new RestBase(EnumErrorCode.OK);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        restData = new RestError
+                        {
+                            errors = new RestErrorDetail[] {
+                                        new RestErrorDetail {
+                                        message = "Vui lòng điền đầy đủ thông tin Chủ Đầu Tư!"
+                                        }
+                                        }
+                        };
+                    }
+                }
+
+            }
+            return Json(
+                restData
+            );
+        }
+
+    }
+}

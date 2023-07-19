@@ -1,0 +1,67 @@
+﻿@model List<HP_Learning.Module.MainPage.Models.BaiThi>;
+
+@{
+    ViewData["Title"] = "Xem bài thi";
+} 
+    <div class="ui main text container" style="margin: 6em 0em;">
+        <img class="ui fluid image" src="~/assets/media/bg/bannerUBND.png" style="margin-bottom: 60px;">
+        <form class="ui form" id="ui_form">
+            <h3 class="ui dividing header text-uppercase">Thông tin thí sinh</h3>
+            <div class="field">
+                <div class="two fields">
+                    <span class="field"><span class="font-weight-bold">Họ và tên: </span>@Model[0].ho_ten</span>
+                </div>
+            </div>
+            <div class="field">
+                <div class="two fields">
+                    <div class="field">
+                        <span class="field"><span class="font-weight-bold">Trường: </span>@Model[0].truong</span>
+                    </div>
+                    <div class="field ">
+                        <span class="field"><span class="font-weight-bold">Lớp: </span>@Model[0].lop</span>
+                    </div>
+                </div>
+            </div>
+            <div class="field">
+                <div class="two fields">
+                    <div class="field ">
+                        @foreach (var item in @Model[0].districts){
+                            <span class="field"><span class="font-weight-bold">Quận/Huyện: </span>@item.name_vn</span>
+                        }
+                    </div>
+                    <div class="field ">
+                        @foreach (var item in @Model[0].communes){
+                            <span class="field"><span class="font-weight-bold">Xã/Phường: </span>@item.name_vn</span>
+                        }
+
+                    </div>
+                </div>
+            </div>
+                <div class="field">
+                <div class="two fields">
+                    <div class="field">
+                        <span class="field"><span class="font-weight-bold">Số điện thoại: </span>@Model[0].so_dt</span>
+                    </div>
+                    <div class="field">
+                        <span class="field"><span class="font-weight-bold">Email: </span>@Model[0].email</span>
+                    </div>
+                </div>
+            </div>
+            <h3 class="ui dividing header text-uppercase">Thông tin bài thi</h3>
+            <div class="field">
+                <a href="@Model[0].duong_dan" target="_blank" download="@Model[0].duong_dan" >@Model[0].ten_dinhkem</a>
+            </div>
+        </form>
+</div>
+<div class="ui inverted vertical footer segment">
+    <div class="ui aligned container">
+        <div class="ui horizontal inverted">
+            <p>Sở Thông tin và Truyền thông Thành phố Hải Phòng, 62 Võ Thị Sáu, Ngô Quyền, Thành phố Hải Phòng </p>
+            <p>Số điện thoại: 02253640073/0931580079</p>
+            <p>Email: thongtin_sotttt@haiphong.gov.vn</p>
+        </div>
+    </div>
+</div>
+
+
+<link rel="stylesheet" href="/_content/HP_Learning.Module.MainPage/js/review/index.css" />

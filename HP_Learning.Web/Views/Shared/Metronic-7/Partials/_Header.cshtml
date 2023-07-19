@@ -1,0 +1,585 @@
+@inject Microsoft.AspNetCore.Identity.UserManager<VietGIS.Infrastructure.Identity.Entities.ApplicationUser> _userManager
+@inject VietGIS.Infrastructure.Identity.Managers.UnitManager<VietGIS.Infrastructure.Identity.Entities.ApplicationUnit> _unitManager
+@{ var user = await _userManager.FindByNameAsync(User.Identity.Name);
+    VietGIS.Infrastructure.Identity.Entities.ApplicationUnit unit = new VietGIS.Infrastructure.Identity.Entities.ApplicationUnit();
+    if (user != null)
+    {
+        unit = await _unitManager.FindByIdAsync(user.UnitId);
+    } }
+<!--begin::Header-->
+<div id="kt_header" class="header flex-column header-fixed">
+    <!--begin::Top-->
+    <div class="header-top">
+        <!--begin::Container-->
+        <div class="container">
+            <!--begin::Left-->
+            <div class="d-none d-lg-flex align-items-center mr-3">
+                <!--begin::Logo-->
+                <a href="/" class="mr-20">
+                    <img alt="Logo" src="/assets/media/logos/Emblem_of_VietNam.svg" class="max-h-50px" />
+                </a>
+                <!--end::Logo-->
+                <!--begin::Tab Navs(for desktop mode)-->
+                <ul class="header-tabs nav align-self-end font-size-md" role="tablist">
+                    <!--begin::Item-->
+                    <li class="nav-item mr-2">
+                        <a href="/" class="nav-link btn btn-clean" style="color:yellow">Trang chủ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/nhaDat/hoSoDat" class="nav-link py-4 px-6 active" style="color:yellow" data-target="#kt_header_tab_nhadat" role="tab">Nhà đất</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/qlda/danhSachDuAn" class="nav-link py-4 px-6" style="color:yellow" data-target="#kt_header_tab_duan" role="tab" onclick="">Quản lý dự án</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/xlhs" class="nav-link py-4 px-6" style="color:yellow" data-target="#kt_header_tab_xlhs" role="tab">Tình hình XLHS</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/vbpl/home" class="nav-link py-4 px-6" style="color:yellow" data-target="#kt_header_tab_vanban" role="tab">Văn bản QPPL</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/calendar" style="color:yellow" class="nav-link py-4 px-6">Lịch làm việc</a>
+                    </li>
+                    @if (User.IsInRole("sa") || User.IsInRole("administrator"))
+                    {
+                        <li class="nav-item">
+                            <a href="#" class="nav-link py-4 px-6" style="color:yellow" data-toggle="tab" data-target="#kt_header_tab_common" role="tab">Hệ thống</a>
+                        </li>
+                        <!--end::Item-->
+                    }
+                </ul>
+                <!--begin::Tab Navs-->
+            </div>
+            <!--end::Left-->
+            <!--begin::Topbar-->
+            <div class="topbar bg-primary">
+                <!--begin::Search-->
+                <!--<div class="dropdown">-->
+                    <!--begin::Toggle-->
+                    <!--<div class="topbar-item" data-toggle="dropdown" data-offset="10px,0px">
+                        <div class="btn btn-icon btn-hover-transparent-white btn-lg btn-dropdown mr-1">
+                            <span class="svg-icon svg-icon-xl">-->
+                                <!--begin::Svg Icon | path:assets/media/svg/icons/General/Search.svg-->
+                                <!--<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24px" height="24px" viewBox="0 0 24 24" version="1.1">
+                                    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                        <rect x="0" y="0" width="24" height="24" />
+                                        <path d="M14.2928932,16.7071068 C13.9023689,16.3165825 13.9023689,15.6834175 14.2928932,15.2928932 C14.6834175,14.9023689 15.3165825,14.9023689 15.7071068,15.2928932 L19.7071068,19.2928932 C20.0976311,19.6834175 20.0976311,20.3165825 19.7071068,20.7071068 C19.3165825,21.0976311 18.6834175,21.0976311 18.2928932,20.7071068 L14.2928932,16.7071068 Z" fill="#000000" fill-rule="nonzero" opacity="0.3" />
+                                        <path d="M11,16 C13.7614237,16 16,13.7614237 16,11 C16,8.23857625 13.7614237,6 11,6 C8.23857625,6 6,8.23857625 6,11 C6,13.7614237 8.23857625,16 11,16 Z M11,18 C7.13400675,18 4,14.8659932 4,11 C4,7.13400675 7.13400675,4 11,4 C14.8659932,4 18,7.13400675 18,11 C18,14.8659932 14.8659932,18 11,18 Z" fill="#000000" fill-rule="nonzero" />
+                                    </g>
+                                </svg>-->
+                                <!--end::Svg Icon-->
+                            <!--</span>
+                        </div>
+                    </div>-->
+                    <!--end::Toggle-->
+                    <!--begin::Dropdown-->
+                    <!--<div class="dropdown-menu p-0 m-0 dropdown-menu-right dropdown-menu-anim-up dropdown-menu-lg">
+                        <div class="quick-search quick-search-dropdown" id="kt_quick_search_dropdown">-->
+                            <!--begin:Form-->
+                            <!--<form method="get" class="quick-search-form">
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">
+                                            <i class="la la-search"></i>
+                                        </span>
+                                    </div>
+                                    <input type="text" class="form-control" placeholder="Tìm kiếm..." />
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">
+                                            <i class="quick-search-close ki ki-close icon-sm text-muted"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                            </form>-->
+                            <!--end::Form-->
+                            <!--begin::Scroll-->
+                            <!--<div class="quick-search-wrapper scroll" data-scroll="true" data-height="325" data-mobile-height="200"></div>-->
+                            <!--end::Scroll-->
+                        <!--</div>
+                    </div>-->
+                    <!--end::Dropdown-->
+                <!--</div>-->
+                <!--end::Search-->
+                <!--begin::Notifications-->
+                <div class="dropdown">
+                    <!--begin::Toggle-->
+                    <div class="topbar-item" data-toggle="dropdown" data-offset="10px,0px">
+                        <div class="btn btn-icon btn-hover-transparent-white btn-lg btn-dropdown mr-1">
+                            <span class="svg-icon svg-icon-xl">
+                                <!--begin::Svg Icon | path:assets/media/svg/icons/Code/Compiling.svg-->
+                                <svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                                    <!-- Generator: Sketch 50.2 (55047) - http://www.bohemiancoding.com/sketch -->
+                                    <g id="Stockholm-icons-/-General-/-Notifications1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                        <path d="M17,12 L18.5,12 C19.3284271,12 20,12.6715729 20,13.5 C20,14.3284271 19.3284271,15 18.5,15 L5.5,15 C4.67157288,15 4,14.3284271 4,13.5 C4,12.6715729 4.67157288,12 5.5,12 L7,12 L7.5582739,6.97553494 C7.80974924,4.71225688 9.72279394,3 12,3 C14.2772061,3 16.1902508,4.71225688 16.4417261,6.97553494 L17,12 Z" id="Combined-Shape" fill="#000000"></path>
+                                        <rect id="Rectangle-23" fill="#000000" opacity="0.3" x="10" y="16" width="4" height="4" rx="2"></rect>
+                                    </g>
+                                </svg>
+                                <!--end::Svg Icon-->
+                            </span>
+                            <span class="pulse-ring"></span>
+                        </div>
+                    </div>
+                    <!--end::Toggle-->
+                    <!--begin::Dropdown-->
+                    <div class="dropdown-menu p-0 m-0 dropdown-menu-right dropdown-menu-anim-up dropdown-menu-lg">
+                        <form>
+                            <!--begin::Header-->
+                            <div class="d-flex flex-column pt-2 bgi-size-cover bgi-no-repeat rounded-top" style="background-image: linear-gradient( 180deg, #ad3333 0%, #b73939 100%) ">
+                                <!--begin::Title-->
+                                <h4 class="d-flex flex-center rounded-top">
+                                    <span style="color:yellow;">Thông báo</span>
+                                    @*<span class="btn btn-text btn-success btn-sm font-weight-bold btn-font-md ml-2">23 new</span>*@
+                                </h4>
+                                <!--end::Title-->
+                                <!--begin::Tabs-->
+                                @*<ul class="nav nav-bold nav-tabs nav-tabs-line nav-tabs-line-3x nav-tabs-line-transparent-white nav-tabs-line-active-border-success mt-3 px-8" role="tablist">
+                                    <li class="nav-item">
+                                        <a class="nav-link active show" data-toggle="tab" href="#topbar_notifications_notifications">Alerts</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" data-toggle="tab" href="#topbar_notifications_events">Events</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" data-toggle="tab" href="#topbar_notifications_logs">Logs</a>
+                                    </li>
+                                </ul>*@
+                                <!--end::Tabs-->
+                            </div>
+                            <!--end::Header-->
+                            <!--begin::Content-->
+                            <div class="tab-content">
+                                <!--begin::Tabpane-->
+                                <div class="tab-pane active show p-8" id="topbar_notifications_notifications" role="tabpanel">
+                                    <!--begin::Scroll-->
+                                    <div class="scroll pr-7 mr-n7" data-scroll="true" data-height="200" data-mobile-height="200">
+                                        <!--begin::Item-->
+                                        
+                                        <!--end::Item-->
+                                    </div>
+                                    <!--end::Scroll-->
+                                    <!--begin::Action-->
+                                    @*<div class="d-flex flex-center pt-7">
+                                        <a href="#" class="btn btn-light-primary font-weight-bold text-center">See All</a>
+                                    </div>*@
+                                    <!--end::Action-->
+                                </div>
+                                <!--end::Tabpane-->
+                            </div>
+                            <!--end::Content-->
+                        </form>
+                    </div>
+                    <!--end::Dropdown-->
+                </div>
+                <!--end::Notifications-->
+                <!--begin::Chat-->
+                <div class="topbar-item">
+                    <div class="btn btn-icon btn-hover-transparent-white btn-dropdown btn-lg mr-1 pulse pulse-white" data-target="#chat_modal" data-toggle="modal">
+                        <span class="svg-icon svg-icon-xl">
+                            <!--begin::Svg Icon | path:/metronic/theme/html/demo1/dist/assets/media/svg/icons/Communication/Group-chat.svg-->
+                            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24px" height="24px" viewBox="0 0 24 24" version="1.1">
+                                <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                    <rect x="0" y="0" width="24" height="24"></rect>
+                                    <path d="M16,15.6315789 L16,12 C16,10.3431458 14.6568542,9 13,9 L6.16183229,9 L6.16183229,5.52631579 C6.16183229,4.13107011 7.29290239,3 8.68814808,3 L20.4776218,3 C21.8728674,3 23.0039375,4.13107011 23.0039375,5.52631579 L23.0039375,13.1052632 L23.0206157,17.786793 C23.0215995,18.0629336 22.7985408,18.2875874 22.5224001,18.2885711 C22.3891754,18.2890457 22.2612702,18.2363324 22.1670655,18.1421277 L19.6565168,15.6315789 L16,15.6315789 Z" fill="#000000"></path>
+                                    <path d="M1.98505595,18 L1.98505595,13 C1.98505595,11.8954305 2.88048645,11 3.98505595,11 L11.9850559,11 C13.0896254,11 13.9850559,11.8954305 13.9850559,13 L13.9850559,18 C13.9850559,19.1045695 13.0896254,20 11.9850559,20 L4.10078614,20 L2.85693427,21.1905292 C2.65744295,21.3814685 2.34093638,21.3745358 2.14999706,21.1750444 C2.06092565,21.0819836 2.01120804,20.958136 2.01120804,20.8293182 L2.01120804,18.32426 C1.99400175,18.2187196 1.98505595,18.1104045 1.98505595,18 Z M6.5,14 C6.22385763,14 6,14.2238576 6,14.5 C6,14.7761424 6.22385763,15 6.5,15 L11.5,15 C11.7761424,15 12,14.7761424 12,14.5 C12,14.2238576 11.7761424,14 11.5,14 L6.5,14 Z M9.5,16 C9.22385763,16 9,16.2238576 9,16.5 C9,16.7761424 9.22385763,17 9.5,17 L11.5,17 C11.7761424,17 12,16.7761424 12,16.5 C12,16.2238576 11.7761424,16 11.5,16 L9.5,16 Z" fill="#000000" opacity="0.3"></path>
+                                </g>
+                            </svg>
+                            <!--end::Svg Icon-->
+                        </span>
+                    </div>
+                </div>
+
+                <!--end::Chat-->
+                <!--begin::User-->
+                <div class="dropdown">
+                    <div class="topbar-item" data-toggle="dropdown" data-offset="10px,0px" aria-expanded="false">
+                        <div class="btn btn-icon btn-hover-transparent-white w-sm-auto d-flex align-items-center btn-lg px-2" id="kt_quick_user_toggle">
+                            <div class="d-flex flex-column text-right pr-sm-3">
+                                <span class="text-white opacity-50 font-weight-bold font-size-sm d-none d-sm-inline">@User.Identity.Name</span>
+                                @if (User.IsInRole("sa") || User.IsInRole("administrator"))
+                                {
+                                    <span class="text-white font-weight-bolder font-size-sm d-none d-sm-inline">Quản trị viên</span> }
+                                else
+                                {
+                                    <span class="text-white font-weight-bolder font-size-sm d-none d-sm-inline">@(unit?.UnitName ?? "")</span>}
+                            </div>
+                            <span class="symbol symbol-35">
+                                <span class="symbol-label font-size-h5 font-weight-bold text-white bg-white-o-30">S</span>
+                            </span>
+                        </div>
+                    </div>
+                    <!-- Begin Dropdown -->
+                    <div class="dropdown-menu p-0 m-0 dropdown-menu-anim-up dropdown-menu-sm dropdown-menu-right">
+                        <ul class="navi navi-hover py-4">
+                            <!--begin::Item-->
+                            <li class="navi-item">
+                                <a data-toggle="modal" data-target="#password-modal" class="navi-link">
+                                    <span class="symbol-group">
+                                        <i class="fa fa-sign-out" aria-hidden="true"></i>
+                                    </span>
+                                    <span class="navi-text">Đổi mật khẩu</span>
+                                </a>
+                            </li>
+                            <li class="navi-item">
+                                <a href="/account/logout" class="navi-link">
+                                    <span class="symbol-group">
+                                        <i class="fa fa-sign-out" aria-hidden="true"></i>
+                                    </span>
+                                    <span class="navi-text">Đăng xuất</span>
+                                </a>
+                            </li>
+                            <!--end::Item-->
+                        </ul>
+                    </div>
+                    <!-- End Dropdown -->
+                </div>
+                <!--end::User-->
+            </div>
+            <!--end::Topbar-->
+        </div>
+        <!--end::Container-->
+    </div>
+    <!--end::Top-->
+    <!--begin::Bottom-->
+    <div class="header-bottom">
+        <!--begin::Container-->
+        <div class="container">
+            <!--begin::Header Menu Wrapper-->
+            <div class="header-navs header-navs-left" id="kt_header_navs">
+                <!--begin::Tab Navs(for tablet and mobile modes)-->
+                <ul class="header-tabs p-5 p-lg-0 d-flex d-lg-none nav nav-bold nav-tabs" role="tablist">
+                    <!--begin::Item-->
+                    <li class="nav-item mr-2">
+                        <a href="/" class="nav-link btn btn-clean">Trang chủ</a>
+                    </li>
+                    <li class="nav-item mr-2">
+                        <a href="#" class="nav-link btn btn-clean" style="color:yellow" data-toggle="tab" data-target="#kt_header_tab_nhadat" role="tab">Nhà đất</a>
+                    </li>
+                    <li class="nav-item mr-2">
+                        <a href="#" class="nav-link btn btn-clean" style="color:yellow" data-toggle="tab" data-target="#kt_header_tab_duan" role="tab">Quản lý dự án</a>
+                    </li>
+                    <li class="nav-item mr-2">
+                        <a href="#" class="nav-link btn btn-clean" style="color:yellow" data-toggle="tab" data-target="#kt_header_tab_xlhs" role="tab">Tình hình XLHS</a>
+                    </li>
+                    <li class="nav-item mr-2">
+                        <a href="#" class="nav-link btn btn-clean" style="color:yellow" data-toggle="tab" data-target="#kt_header_tab_vanban" role="tab">Văn bản QPPL</a>
+                    </li>
+                    <li class="nav-item mr-2">
+                        <a href="#" class="nav-link btn btn-clean" style="color:yellow" data-toggle="tab" data-target="#kt_header_tab_common" role="tab">Quản lý chung</a>
+                    </li>
+                    <!--end::Item-->
+                </ul>
+                <!--begin::Tab Navs-->
+                <!--begin::Tab Content-->
+                <div class="tab-content">
+                    <!--begin::Tab Pane-->
+                    <div class="tab-pane py-5 p-lg-0 active" id="kt_header_tab_nhadat">
+                        <!--begin::Menu-->
+                        <div id="kt_header_menu_1" class="header-menu header-menu-mobile header-menu-layout-default">
+                            <!--begin::Nav-->
+                            <ul class="menu-nav">
+                                @if (User.IsInRole("sa") || User.IsInRole("administrator") || User.IsInRole("watch_dashboard_nhadat"))
+                                {
+                                    <li class="menu-item" aria-haspopup="true" name="tong_quan">
+                                        <a href="/nhaDat/home" class="menu-link">
+                                            <span class="menu-text">Tổng quan</span>
+                                        </a>
+                                    </li>
+                                }
+                                <li class="menu-item" aria-haspopup="true" name="hoso_dat">
+                                    <a href="/nhaDat/hoSoDat" class="menu-link">
+                                        <span class="menu-text">Hồ sơ đất</span>
+                                    </a>
+                                </li>
+                                <li class="menu-item" aria-haspopup="true" name="hoso_nha">
+                                    <a href="/nhaDat/hoSoNha" class="menu-link">
+                                        <span class="menu-text">Hồ sơ nhà</span>
+                                    </a>
+                                </li>
+                                <li class="menu-item" aria-haspopup="true" name="bao_cao">
+                                    <a href="/nhaDat/baoCao" class="menu-link">
+                                        <span class="menu-text">Báo cáo</span>
+                                    </a>
+                                </li>
+                                <li class="menu-item menu-item-submenu menu-item-rel" data-menu-toggle="click" aria-haspopup="true" name="danh_muc">
+                                    <a href="javascript:;" class="menu-link menu-toggle">
+                                        <span class="menu-text">Danh mục</span>
+                                        <span class="menu-desc"></span>
+                                        <i class="menu-arrow"></i>
+                                    </a>
+                                    <div class="menu-submenu menu-submenu-classic menu-submenu-left" data-hor-direction="menu-submenu-left">
+                                        <ul class="menu-subnav">
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/nhaDat/category" class="menu-link">
+                                                    <span class="menu-text">Danh mục chung</span>
+                                                </a>
+                                            </li>
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/nhaDat/donViQuanLy" class="menu-link">
+                                                    <span class="menu-text">Đơn vị quản lý</span>
+                                                </a>
+                                            </li>
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/nhaDat/donViSuDung" class="menu-link">
+                                                    <span class="menu-text">Đơn vị sử dụng</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </li>
+                            </ul>
+                            <!--end::Nav-->
+                        </div>
+                        <!--end::Menu-->
+                    </div>
+                    <!--begin::Tab Pane-->
+                    <div class="tab-pane py-5 p-lg-0" id="kt_header_tab_duan">
+                        <!--begin::Menu-->
+                        <div id="kt_header_menu_2" class="header-menu header-menu-mobile header-menu-layout-default">
+                            <!--begin::Nav-->
+                            <ul class="menu-nav">
+                                @if (User.IsInRole("sa") || User.IsInRole("administrator") || User.IsInRole("watch_dashboard_qlda"))
+                                {
+                                    <li class="menu-item" aria-haspopup="true" name="tong_quan">
+                                        <a href="/qlda/home" class="menu-link">
+                                            <span class="menu-text">Tổng quan</span>
+                                        </a>
+                                    </li>
+                                }
+                                <li class="menu-item" aria-haspopup="true" name="danhsach_duan">
+                                    <a href="/qlda/danhsachduan" class="menu-link">
+                                        <span class="menu-text">Danh sách dự án</span>
+                                    </a>
+                                </li>
+                                @*<li class="menu-item" aria-haspopup="true" name="danh_muc">
+                                        <a href="/qlda/category" class="menu-link">
+                                            <span class="menu-text">Danh mục</span>
+                                        </a>
+                                    </li>*@
+                                <li class="menu-item menu-item-submenu menu-item-rel" data-menu-toggle="click" aria-haspopup="true" name="danh_muc">
+                                    <a href="javascript:;" class="menu-link menu-toggle">
+                                        <span class="menu-text">Danh mục</span>
+                                        <span class="menu-desc"></span>
+                                        <i class="menu-arrow"></i>
+                                    </a>
+                                    <div class="menu-submenu menu-submenu-classic menu-submenu-left" data-hor-direction="menu-submenu-left">
+                                        <ul class="menu-subnav">
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/qlda/category" class="menu-link">
+                                                    <span class="menu-text">Danh mục chung</span>
+                                                </a>
+                                            </li>
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/qlda/nhomDuAn" class="menu-link">
+                                                    <span class="menu-text">Nhóm dự án</span>
+                                                </a>
+                                            </li>
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/qlda/chuDauTu" class="menu-link">
+                                                    <span class="menu-text">Chủ đầu tư</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </li>
+                            </ul>
+                            <!--end::Nav-->
+                        </div>
+                        <!--end::Menu-->
+                    </div>
+                    <!--begin::Tab Pane-->
+                    <div class="tab-pane py-5 p-lg-0" id="kt_header_tab_xlhs">
+                        <!--begin::Menu-->
+                        <div id="kt_header_menu_3" class="header-menu header-menu-mobile header-menu-layout-default">
+                            <!--begin::Nav-->
+                            <ul class="menu-nav">
+                                <li class="menu-item" aria-haspopup="true" name="dashboard">
+                                    <a href="/xlhs" class="menu-link">
+                                        <span class="menu-text">Dashboard</span>
+                                    </a>
+                                </li>
+                                <li class="menu-item" aria-haspopup="true" name="danhsach_hoso">
+                                    <a href="/xlhs/danhsachhoso" class="menu-link">
+                                        <span class="menu-text">Danh sách hồ sơ</span>
+                                    </a>
+                                </li>
+                                <li class="menu-item" aria-haspopup="true" name="thongke_hoso">
+                                    <a href="/xlhs/thongKeHoSo" class="menu-link">
+                                        <span class="menu-text">Thống kê hồ sơ</span>
+                                    </a>
+                                </li>
+                                <li class="menu-item menu-item-submenu menu-item-rel" data-menu-toggle="click" aria-haspopup="true" name="danh_muc">
+                                    <a href="javascript:;" class="menu-link menu-toggle">
+                                        <span class="menu-text">Danh mục</span>
+                                        <span class="menu-desc"></span>
+                                        <i class="menu-arrow"></i>
+                                    </a>
+                                    <div class="menu-submenu menu-submenu-classic menu-submenu-left" data-hor-direction="menu-submenu-left">
+                                        <ul class="menu-subnav">
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/xlhs/category" class="menu-link">
+                                                    <span class="menu-text">Danh mục chung</span>
+                                                </a>
+                                            </li>
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/xlhs/loaiHoSo" class="menu-link">
+                                                    <span class="menu-text">Loại hồ sơ</span>
+                                                </a>
+                                            </li>
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/xlhs/nhomLoaiHoSo" class="menu-link">
+                                                    <span class="menu-text">Nhóm loại hồ sơ</span>
+                                                </a>
+                                            </li>
+                                            @*<li class="menu-item" aria-haspopup="true">
+                                                    <a href="/xlhs/chuDauTu" class="menu-link">
+                                                        <span class="menu-text">Chủ đầu tư</span>
+                                                    </a>
+                                                </li>*@
+                                        </ul>
+                                    </div>
+                                </li>
+                            </ul>
+                            <!--end::Nav-->
+                        </div>
+                        <!--end::Menu-->
+                    </div>
+                    <!--begin::Tab Pane-->
+                    <div class="tab-pane py-5 p-lg-0" id="kt_header_tab_vanban">
+                        <!--begin::Menu-->
+                        <div id="kt_header_menu_4" class="header-menu header-menu-mobile header-menu-layout-default">
+                            <!--begin::Nav-->
+                            <ul class="menu-nav">
+                                <li class="menu-item" aria-haspopup="true">
+                                    <a href="/vbpl/home" class="menu-link">
+                                        <span class="menu-text">Danh sách văn bản</span>
+                                    </a>
+                                </li>
+                                <li class="menu-item" aria-haspopup="true">
+                                    <a href="/vbpl/category" class="menu-link">
+                                        <span class="menu-text">Danh mục</span>
+                                    </a>
+                                </li>
+                            </ul>
+                            <!--end::Nav-->
+                        </div>
+                        <!--end::Menu-->
+                    </div>
+                    <!--begin::Tab Pane-->
+                    <div class="tab-pane py-5 p-lg-0" id="kt_header_tab_common">
+                        <!--begin::Menu-->
+                        <div id="kt_header_menu_5" class="header-menu header-menu-mobile header-menu-layout-default">
+                            <!--begin::Nav-->
+                            <ul class="menu-nav">
+                                <li class="menu-item" aria-haspopup="true" name="lich_lamviec">
+                                    <a href="/core/lichLamViec" class="menu-link">
+                                        <span class="menu-text">Lịch làm việc</span>
+                                    </a>
+                                </li>
+                                <li class="menu-item" aria-haspopup="true" name="lich_ngayle">
+                                    <a href="/core/lichNgayLe" class="menu-link">
+                                        <span class="menu-text">Lịch ngày lễ</span>
+                                    </a>
+                                </li>
+                                <li class="menu-item menu-item-submenu menu-item-rel" data-menu-toggle="click" aria-haspopup="true" name="baiviet_tintuc">
+                                    <a href="javascript:;" class="menu-link menu-toggle">
+                                        <span class="menu-text">Bài viết - Tin tức</span>
+                                        <span class="menu-desc"></span>
+                                        <i class="menu-arrow"></i>
+                                    </a>
+                                    <div class="menu-submenu menu-submenu-classic menu-submenu-left" data-hor-direction="menu-submenu-left">
+                                        <ul class="menu-subnav">
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/core/chuyenMuc" class="menu-link">
+                                                    <span class="menu-text">Quản lý chuyên mục</span>
+                                                </a>
+                                            </li>
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/core/baiViet" class="menu-link">
+                                                    <span class="menu-text">Quản lý bài viết</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </li>
+                                <li class="menu-item menu-item-submenu menu-item-rel" data-menu-toggle="click" aria-haspopup="true" name="he_thong">
+                                    <a href="javascript:;" class="menu-link menu-toggle">
+                                        <span class="menu-text">Hệ thống</span>
+                                        <span class="menu-desc"></span>
+                                        <i class="menu-arrow"></i>
+                                    </a>
+                                    <div class="menu-submenu menu-submenu-classic menu-submenu-left" data-hor-direction="menu-submenu-left">
+                                        <ul class="menu-subnav">
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/user" class="menu-link">
+                                                    <span class="menu-text">Quản lý người dùng</span>
+                                                </a>
+                                            </li>
+                                            <li class="menu-item" aria-haspopup="true">
+                                                <a href="/units" class="menu-link">
+                                                    <span class="menu-text">Quản lý đơn vị/phòng ban</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </li>
+                            </ul>
+                            <!--end::Nav-->
+                        </div>
+                        <!--end::Menu-->
+                    </div>
+                    <!--begin::Tab Pane-->
+                </div>
+                <!--end::Tab Content-->
+            </div>
+            <!--end::Header Menu Wrapper-->
+        </div>
+        <!--end::Container-->
+    </div>
+    <!--end::Bottom-->
+</div>
+<div class="modal fade" id="password-modal" data-keyboard="false" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Đổi mật khẩu</h5>
+                <button type="button" class="close btn-close" data-dismiss="modal" aria-label="Close">
+                    <i aria-hidden="true" class="ki ki-close"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="changePassword">
+                <form class="change-password-form">
+                    @Html.AntiForgeryToken()
+                    <div class="change_pass">
+                        <div class="mb-1">
+                            <div class="form-group row">
+                                <label class="col-lg-4 col-form-label">Mật khẩu cũ:<span class="text-danger">*</span></label>
+                                <div class="col-lg-8">
+                                    <input type="password" class="form-control update-password_input" id="OldPasswd" name="OldPasswd" placeholder="Mật khẩu cũ" />
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <label class="col-lg-4 col-form-label">Mật khẩu mới:<span class="text-danger">*</span></label>
+                                <div class="col-lg-8">
+                                    <input type="password" class="form-control update-password_input" id="NewPasswd" name="NewPasswd" placeholder="Mật khẩu mới" />
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <label class="col-lg-4 col-form-label">Xác nhận mật khẩu:<span class="text-danger">*</span></label>
+                                <div class="col-lg-8">
+                                    <input type="password" class="form-control update-password_input" id="ConfirmNewPasswd" name="ConfirmNewPasswd" placeholder="Xác nhận mật khẩu" />
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-close btn-light-danger font-weight-bold " data-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary font-weight-bold change-password">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!--end::Header-->
